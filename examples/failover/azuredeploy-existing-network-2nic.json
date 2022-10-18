@@ -3,7 +3,7 @@
     "contentVersion": "2.5.0.0",
     "parameters": {
       "templateBaseUrl": {
-        "defaultValue": "https://cdn.f5.com/product/cloudsolutions/",
+        "defaultValue": "https://raw.githubusercontent.com/cript2000/f5-azure-arm-templates-v2/",
         "metadata": {
           "description": "The publicly accessible URL where the linked ARM templates are located."
         },
@@ -17,7 +17,7 @@
         "type": "bool"
       },
       "artifactLocation": {
-        "defaultValue": "[concat('f5-azure-arm-templates-v2/v', deployment().properties.template.contentVersion, '/examples/')]",
+        "defaultValue": "main/examples",
         "metadata": {
           "description": "The directory, relative to the templateBaseUrl, where the modules folder is located."
         },
@@ -122,56 +122,56 @@
         "type": "string"
       },
       "bigIpExternalSelfIp01": {
-        "defaultValue": "10.0.1.11",
+        "defaultValue": "172.20.3.10",
         "metadata": {
           "description": "External Private IP Address for BIGIP Instance 01. IP address parameter must be in the form x.x.x.x."
         },
         "type": "string"
       },
       "bigIpExternalSelfIp02": {
-        "defaultValue": "10.0.1.12",
+        "defaultValue": "172.20.3.11",
         "metadata": {
           "description": "External Private IP Address for BIGIP Instance 02. IP address parameter must be in the form x.x.x.x."
         },
         "type": "string"
       },
       "bigIpExternalVip01": {
-        "defaultValue": "10.0.1.101",
+        "defaultValue": "172.20.3.20",
         "metadata": {
           "description": "External private VIP Address for BIGIP Instance. IP address parameter must be in the form x.x.x.x. The address must reside in the same subnet and address space as the IP address provided for bigIpExternalSelfIp01."
         },
         "type": "string"
       },
       "bigIpMgmtAddress01": {
-        "defaultValue": "10.0.0.11",
+        "defaultValue": "172.20.1.4",
         "metadata": {
           "description": "Management Private IP Address for BIGIP Instance 01. IP address parameter must be in the form x.x.x.x."
         },
         "type": "string"
       },
       "bigIpMgmtAddress02": {
-        "defaultValue": "10.0.0.12",
+        "defaultValue": "172.20.1.6",
         "metadata": {
           "description": "Management Private IP Address for BIGIP Instance 02. IP address parameter must be in the form x.x.x.x."
         },
         "type": "string"
       },
       "bigIpPeerAddr": {
-        "defaultValue": "10.0.1.11",
+        "defaultValue": "172.20.3.10",
         "metadata": {
           "description": "Provide the static address of the remote peer used for clustering. In this failover solution, clustering is initiated from the second instance (02) to the first instance (01) so you would provide the first instances Self IP address."
         },
         "type": "string"
       },
       "bigIpRuntimeInitConfig01": {
-        "defaultValue": "https://raw.githubusercontent.com/F5Networks/f5-azure-arm-templates-v2/v2.5.0.0/examples/failover/bigip-configurations/runtime-init-conf-3nic-payg-instance01.yaml",
+        "defaultValue": "https://raw.githubusercontent.com/cript2000/f5-azure-arm-templates-v2/main/examples/failover/bigip-configurations/runtime-init-conf-2nic-byol-instance01.yaml",
         "metadata": {
           "description": "Supply a URL to the bigip-runtime-init configuration file in YAML or JSON format, or an escaped JSON string to use for f5-bigip-runtime-init configuration."
         },
         "type": "string"
       },
       "bigIpRuntimeInitConfig02": {
-        "defaultValue": "https://raw.githubusercontent.com/F5Networks/f5-azure-arm-templates-v2/v2.5.0.0/examples/failover/bigip-configurations/runtime-init-conf-3nic-payg-instance02.yaml",
+        "defaultValue": "https://raw.githubusercontent.com/cript2000/f5-azure-arm-templates-v2/main/examples/failover/bigip-configurations/runtime-init-conf-2nic-byol-instance02.yaml",
         "metadata": {
           "description": "Supply a URL to the bigip-runtime-init configuration file in YAML or JSON format, or an escaped JSON string to use for f5-bigip-runtime-init configuration."
         },
@@ -327,7 +327,7 @@
         "properties": {
           "mode": "Incremental",
           "templateLink": {
-            "uri": "[concat(parameters('templateBaseUrl'), parameters('artifactLocation'), 'modules/dag/dag-2nic.json')]",
+            "uri": "[concat(parameters('templateBaseUrl'), parameters('artifactLocation'), 'modules/dag/dag.json')]",
             "contentVersion": "[variables('contentVersion')]"
           },
           "parameters": {
