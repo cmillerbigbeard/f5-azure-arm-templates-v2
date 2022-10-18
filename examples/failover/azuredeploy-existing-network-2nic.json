@@ -30,14 +30,14 @@
         "type": "string"
       },
       "bigIpHostname01": {
-        "defaultValue": "failover01.local",
+        "defaultValue": "f5-ltm-az-01.miller.com",
         "metadata": {
           "description": "Supply the hostname you would like to use for the BIG-IP instance. The hostname must contain fewer than 63 characters."
         },
         "type": "string"
       },
       "bigIpHostname02": {
-        "defaultValue": "failover02.local",
+        "defaultValue": "f5-ltm-az-02.miller.com",
         "metadata": {
           "description": "Supply the hostname you would like to use for the BIG-IP instance. The hostname must contain fewer than 63 characters."
         },
@@ -58,14 +58,14 @@
         "type": "string"
       },
       "bigIpLicenseKey01": {
-        "defaultValue": "",
+        "defaultValue": "JZNEM-LRDVQ-JKBNC-YOBOQ-FQIEWOQ",
         "metadata": {
           "description": "Supply the F5 BYOL license key for BIG-IP instance 01. Leave this parameter blank if deploying the PAYG solution."
         },
         "type": "string"
       },
       "bigIpLicenseKey02": {
-        "defaultValue": "",
+        "defaultValue": "SMJRV-BJYQR-GVJUY-EFJLK-DHUGFXJ",
         "metadata": {
           "description": "Supply the F5 BYOL license key for BIG-IP instance 02. Leave this parameter blank if deploying the PAYG solution."
         },
@@ -327,7 +327,7 @@
         "properties": {
           "mode": "Incremental",
           "templateLink": {
-            "uri": "[concat(parameters('templateBaseUrl'), parameters('artifactLocation'), 'modules/dag/dag-2nic-only.json')]",
+            "uri": "[concat(parameters('templateBaseUrl'), parameters('artifactLocation'), 'modules/dag/dag-2nic.json')]",
             "contentVersion": "[variables('contentVersion')]"
           },
           "parameters": {
