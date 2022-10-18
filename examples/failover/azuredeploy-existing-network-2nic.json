@@ -17,7 +17,7 @@
         "type": "bool"
       },
       "artifactLocation": {
-        "defaultValue": "main/examples",
+        "defaultValue": "main/examples/",
         "metadata": {
           "description": "The directory, relative to the templateBaseUrl, where the modules folder is located."
         },
