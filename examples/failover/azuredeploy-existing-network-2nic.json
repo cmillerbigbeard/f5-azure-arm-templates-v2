@@ -247,7 +247,6 @@
       ],
       "userAssignedIdentityName": "[concat(variables('uniqueString'), '-bigip-user-identity')]",
       "externalLoadBalancerName": "None",
-      "internalLoadBalancerName": "None",
       "loadBalancerRulePorts": [],
       "mgmtNsgRulesArray": [
         {
@@ -337,9 +336,6 @@
             },
             "externalLoadBalancerName": {
               "value": "[variables('externalLoadBalancerName')]"
-            },
-            "internalLoadBalancerName": {
-              "value": "[variables('internalLoadBalancerName')]"
             },
             "loadBalancerRulePorts": {
               "value": "[variables('loadBalancerRulePorts')]"
