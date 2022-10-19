@@ -346,7 +346,7 @@
             "nsg1": {
               "value": "[variables('internalSecurityGroup')]"
             },
-            "numberPublicinternalIpAddresses": {
+            "numberPublicexternalIpAddresses": {
               "value": "[if(parameters('provisionServicePublicIp'), 3, 2)]"
             },
             "numberPublicMgmtIpAddresses": {
