@@ -115,27 +115,27 @@
         },
         "type": "string"
       },
-      "bigIpinternalSubnetId": {
+      "bigIp internalSubnetId": {
         "metadata": {
           "description": "REQUIRED - Supply the Azure resource ID of the internal subnet where BIG-IP VE instances will be deployed."
         },
         "type": "string"
       },
-      "bigIpinternalSelfIp01": {
+      "bigIp internalSelfIp01": {
         "defaultValue": "172.20.3.10",
         "metadata": {
           "description": "internal Private IP Address for BIGIP Instance 01. IP address parameter must be in the form x.x.x.x."
         },
         "type": "string"
       },
-      "bigIpinternalSelfIp02": {
+      "bigIp internalSelfIp02": {
         "defaultValue": "172.20.3.11",
         "metadata": {
           "description": "internal Private IP Address for BIGIP Instance 02. IP address parameter must be in the form x.x.x.x."
         },
         "type": "string"
       },
-      "bigIpinternalVip01": {
+      "bigIp internalVip01": {
         "defaultValue": "172.20.3.20",
         "metadata": {
           "description": "internal private VIP Address for BIGIP Instance. IP address parameter must be in the form x.x.x.x. The address must reside in the same subnet and address space as the IP address provided for bigIpinternalSelfIp01."
