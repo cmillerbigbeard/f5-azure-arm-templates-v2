@@ -58,14 +58,14 @@
         "type": "string"
       },
       "bigIpLicenseKey01": {
-        "defaultValue": "JZNEM-LRDVQ-JKBNC-YOBOQ-FQIEWOQ",
+        "defaultValue": "",
         "metadata": {
           "description": "Supply the F5 BYOL license key for BIG-IP instance 01. Leave this parameter blank if deploying the PAYG solution."
         },
         "type": "string"
       },
       "bigIpLicenseKey02": {
-        "defaultValue": "SMJRV-BJYQR-GVJUY-EFJLK-DHUGFXJ",
+        "defaultValue": "",
         "metadata": {
           "description": "Supply the F5 BYOL license key for BIG-IP instance 02. Leave this parameter blank if deploying the PAYG solution."
         },
