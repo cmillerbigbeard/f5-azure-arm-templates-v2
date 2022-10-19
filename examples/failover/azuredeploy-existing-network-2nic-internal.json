@@ -422,7 +422,7 @@
               "value": "[reference('dagTemplate').outputs.nsg1Id.value]"
             },
             "nic1PrimaryPublicId": {
-              "value": "[reference('dagTemplate').outputs.internalIpIds.value[0]]"
+              "value": "[reference('dagTemplate').outputs.externalIpIds.value[0]]"
             },
             "nic1SelfIp": {
               "value": "[parameters('bigIpinternalSelfIp01')]"
@@ -527,13 +527,13 @@
               "value": "[reference('dagTemplate').outputs.nsg1Id.value]"
             },
             "nic1PrimaryPublicId": {
-              "value": "[reference('dagTemplate').outputs.internalIpIds.value[1]]"
+              "value": "[reference('dagTemplate').outputs.externalIpIds.value[1]]"
             },
             "nic1SelfIp": {
               "value": "[parameters('bigIpinternalSelfIp02')]"
             },
             "nic1ServiceIPs": {
-              "value": "[if(variables('provisionServicePrivateIp'), if(parameters('provisionServicePublicIp'), createArray(createObject('publicIpId', reference('dagTemplate').outputs.internalIpIds.value[2], 'privateIpAddress', parameters('bigIpinternalVip01'))), createArray(createObject('publicIpId', '', 'privateIpAddress', parameters('bigIpinternalVip01')))), createArray())]"
+              "value": "[if(variables('provisionServicePrivateIp'), if(parameters('provisionServicePublicIp'), createArray(createObject('publicIpId', reference('dagTemplate').outputs.externalIpIds.value[2], 'privateIpAddress', parameters('bigIpinternalVip01'))), createArray(createObject('publicIpId', '', 'privateIpAddress', parameters('bigIpinternalVip01')))), createArray())]"
             },
             "roleDefinitionId": {
               "value": ""
@@ -617,7 +617,7 @@
       "wafPublicIps": {
         "condition": "[parameters('provisionServicePublicIp')]",
         "type": "string",
-        "value": "[reference('dagTemplate').outputs.internalIps.value[2]]"
+        "value": "[reference('dagTemplate').outputs.externalIps.value[2]]"
       },
       "vip1PrivateIp": {
         "condition": "[variables('provisionServicePrivateIp')]",
@@ -627,7 +627,7 @@
       "vip1PublicIp": {
         "condition": "[parameters('provisionServicePublicIp')]",
         "type": "string",
-        "value": "[reference('dagTemplate').outputs.internalIps.value[2]]"
+        "value": "[reference('dagTemplate').outputs.externalIps.value[2]]"
       },
       "vip1PrivateUrlHttp": {
         "condition": "[variables('provisionServicePrivateIp')]",
@@ -637,7 +637,7 @@
       "vip1PublicUrlHttp": {
         "condition": "[parameters('provisionServicePublicIp')]",
         "type": "string",
-        "value": "[concat('http://', reference('dagTemplate').outputs.internalIps.value[2], '/')]"
+        "value": "[concat('http://', reference('dagTemplate').outputs.externalIps.value[2], '/')]"
       },
       "vip1PrivateUrlHttps": {
         "condition": "[variables('provisionServicePrivateIp')]",
@@ -647,7 +647,7 @@
       "vip1PublicUrlHttps": {
         "condition": "[parameters('provisionServicePublicIp')]",
         "type": "string",
-        "value": "[concat('https://', reference('dagTemplate').outputs.internalIps.value[2], '/')]"
+        "value": "[concat('https://', reference('dagTemplate').outputs.externalIps.value[2], '/')]"
       }
     }
   }
