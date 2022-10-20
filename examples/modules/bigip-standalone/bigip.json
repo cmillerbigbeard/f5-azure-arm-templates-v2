@@ -541,7 +541,7 @@
       "type": "Microsoft.Compute/virtualMachines"
     },
     {
-      "apiVersion": "2021-04-01-preview",
+      "apiVersion": "2022-04-01",
       "condition": "[not(empty(parameters('roleDefinitionId')))]",
       "dependsOn": [
         "[variables('vmId')]"
