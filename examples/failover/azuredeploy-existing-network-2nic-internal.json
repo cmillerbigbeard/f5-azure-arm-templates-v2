@@ -90,13 +90,6 @@
         },
         "type": "bool"
       },
-      "provisionServicePublicIp": {
-        "defaultValue": false,
-        "metadata": {
-          "description": "Flag to deploy public IP address resource for application."
-        },
-        "type": "bool"
-      },
       "restrictedSrcAddressMgmt": {
         "metadata": {
           "description": "REQUIRED - When creating management security group, this field restricts management access to a specific network or address. Enter an IP address or address range in CIDR notation, or asterisk for all sources."
@@ -346,9 +339,6 @@
             "nsg1": {
               "value": "[variables('internalSecurityGroup')]"
             },
-            "numberPublicexternalIpAddresses": {
-              "value": "[if(parameters('provisionServicePublicIp'), 3, 2)]"
-            },
             "numberPublicMgmtIpAddresses": {
               "value": "[if(parameters('provisionPublicIpMgmt'), 2, 1)]"
             },
@@ -532,9 +522,6 @@
             "nic1SelfIp": {
               "value": "[parameters('bigIpinternalSelfIp02')]"
             },
-            "nic1ServiceIPs": {
-              "value": "[if(variables('provisionServicePrivateIp'), if(parameters('provisionServicePublicIp'), createArray(createObject('publicIpId', reference('dagTemplate').outputs.externalIpIds.value[2], 'privateIpAddress', parameters('bigIpinternalVip01'))), createArray(createObject('publicIpId', '', 'privateIpAddress', parameters('bigIpinternalVip01')))), createArray())]"
-            },
             "roleDefinitionId": {
               "value": ""
             },
@@ -614,40 +601,20 @@
         "type": "string",
         "value": "[concat('https://', parameters('bigIpMgmtAddress02'), ':443/')]"
       },
-      "wafPublicIps": {
-        "condition": "[parameters('provisionServicePublicIp')]",
-        "type": "string",
-        "value": "[reference('dagTemplate').outputs.externalIps.value[2]]"
-      },
       "vip1PrivateIp": {
         "condition": "[variables('provisionServicePrivateIp')]",
         "type": "string",
         "value": "[parameters('bigIpinternalVip01')]"
-      },
-      "vip1PublicIp": {
-        "condition": "[parameters('provisionServicePublicIp')]",
-        "type": "string",
-        "value": "[reference('dagTemplate').outputs.externalIps.value[2]]"
       },
       "vip1PrivateUrlHttp": {
         "condition": "[variables('provisionServicePrivateIp')]",
         "type": "string",
         "value": "[concat('http://', parameters('bigIpinternalVip01'), '/')]"
       },
-      "vip1PublicUrlHttp": {
-        "condition": "[parameters('provisionServicePublicIp')]",
-        "type": "string",
-        "value": "[concat('http://', reference('dagTemplate').outputs.externalIps.value[2], '/')]"
-      },
       "vip1PrivateUrlHttps": {
         "condition": "[variables('provisionServicePrivateIp')]",
         "type": "string",
         "value": "[concat('https://', parameters('bigIpinternalVip01'), '/')]"
-      },
-      "vip1PublicUrlHttps": {
-        "condition": "[parameters('provisionServicePublicIp')]",
-        "type": "string",
-        "value": "[concat('https://', reference('dagTemplate').outputs.externalIps.value[2], '/')]"
       }
     }
   }
