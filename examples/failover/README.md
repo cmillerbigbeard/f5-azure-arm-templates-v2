@@ -310,13 +310,15 @@ Two options for deploying this solution include:
 
 ### Deploying via the Azure Deploy button
 
+> **Fork notice:** this copy of the failover templates is maintained in `cmillerbigbeard/f5-azure-arm-templates-v2` (branch `azure-failover-17.5`). It adds the Storage v2 fix and deploys BIG-IP 17.5 (3-NIC PAYG), which the upstream v3.3.0.0 templates do not: on 17.5 the `/Common/Root` trust domain is not initialised after first boot and Declarative Onboarding fails, so the runtime-init configs restart `devmgmtd` until it exists. The Deploy buttons below use this fork.
+
 The easiest way to deploy this Azure Arm templates is to use the deploy button below:<br>
 
 **Full Stack**
-[![Deploy to Azure](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FF5Networks%2Ff5-azure-arm-templates-v2%2Fv3.3.0.0%2Fexamples%2Ffailover%2Fazuredeploy.json)
+[![Deploy to Azure](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcmillerbigbeard%2Ff5-azure-arm-templates-v2%2Fazure-failover-17.5%2Fexamples%2Ffailover%2Fazuredeploy.json)
 
 **Existing Stack**
-[![Deploy to Azure](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FF5Networks%2Ff5-azure-arm-templates-v2%2Fv3.3.0.0%2Fexamples%2Ffailover%2Fazuredeploy-existing-network.json)
+[![Deploy to Azure](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcmillerbigbeard%2Ff5-azure-arm-templates-v2%2Fazure-failover-17.5%2Fexamples%2Ffailover%2Fazuredeploy-existing-network.json)
 
 *Step 1: Custom Template Page* 
   - Select or Create New Resource Group.
