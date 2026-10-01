@@ -237,6 +237,17 @@ pre_onboard_enabled:
       - /usr/bin/setdb provision.extramb 1000 || exit 0
       - /usr/bin/setdb provision.restjavad.extramb 1384 || /usr/bin/setdb restjavad.useextramb
         true || exit 0
+  - name: ensure_trust_domain
+    type: inline
+    commands:
+      - |
+        for i in 1 2 3 4; do
+          tmsh list cm trust-domain Root >/dev/null 2>&1 && echo "trust-domain Root present" && break
+          echo "trust-domain Root missing, restarting devmgmtd (attempt $i)"
+          bigstart restart devmgmtd
+          sleep 30
+        done
+        exit 0
 runtime_parameters:
   - name: VAULT_URL
     type: url
