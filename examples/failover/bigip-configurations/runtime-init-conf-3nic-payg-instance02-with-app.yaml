@@ -312,6 +312,20 @@ pre_onboard_enabled:
           sleep 30
         done
         exit 0
+  - name: wait_for_peer
+    type: inline
+    commands:
+      - |
+        for i in $(seq 1 20); do
+          STATUS=$(curl -sk -o /dev/null -w '%{http_code}' --max-time 5 https://{{{REMOTE_HOST}}}/mgmt/shared/ping)
+          if [ -n "$STATUS" ] && [ "$STATUS" != "000" ]; then
+            echo "peer {{{REMOTE_HOST}}} ready (HTTP $STATUS) on attempt $i"
+            break
+          fi
+          echo "waiting for peer {{{REMOTE_HOST}}} (attempt $i of 20)..."
+          sleep 30
+        done
+        exit 0
 runtime_parameters:
   - name: VAULT_URL
     type: url
