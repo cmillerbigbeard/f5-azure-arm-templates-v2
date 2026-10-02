@@ -1,5 +1,16 @@
 # F5 BIG-IP Azure ARM Templates
 
+## BIG-IP 17.5 Failover Pair (3-NIC, PAYG) - Deploy to Azure
+
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcmillerbigbeard%2Ff5-azure-arm-templates-v2%2Fazure-failover-17.5%2Fexamples%2Ffailover%2Fazuredeploy-existing-network.json)
+
+HA pair with Cloud Failover Extension on BIG-IP 17.5, deployed into an existing VNet (management, external and internal subnets). This fork fixes two problems that stop the upstream v3.3.0.0 templates from deploying today: Azure no longer accepts Storage v1 accounts, and on BIG-IP 17.5 the `/Common/Root` trust domain is not initialised after first boot, so Declarative Onboarding fails to form the cluster. Details and test results: see [examples/failover/README.md](examples/failover/README.md) and upstream issue [#52](https://github.com/F5Networks/f5-azure-arm-templates-v2/issues/52).
+
+You will need: a unique string, an SSH public key, source-address restrictions, the three subnet IDs, and a BIG-IP admin password (or a Key Vault secret ID).
+
+---
+
+
 [![Releases](https://img.shields.io/github/release/f5networks/f5-azure-arm-templates-v2.svg)](https://github.com/f5networks/f5-azure-arm-templates-v2/releases)
 [![Issues](https://img.shields.io/github/issues/f5networks/f5-azure-arm-templates-v2.svg)](https://github.com/f5networks/f5-azure-arm-templates-v2/issues)
 
