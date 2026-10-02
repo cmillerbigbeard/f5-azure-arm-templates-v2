@@ -320,13 +320,18 @@ pre_onboard_enabled:
     type: inline
     commands:
       - |
+        PEER=$(curl -sf --max-time 5 -H 'Metadata: true' \
+          'http://169.254.169.254/metadata/instance/compute/tags?api-version=2021-02-01' \
+          | tr ';' '\n' | grep '^bigIpPeerAddr:' | cut -d: -f2)
+        if [ -z "$PEER" ]; then echo "bigIpPeerAddr tag not found, skipping wait"; exit 0; fi
+        echo "waiting for peer $PEER to respond..."
         for i in $(seq 1 20); do
-          STATUS=$(curl -sk -o /dev/null -w '%{http_code}' --max-time 5 https://{{{REMOTE_HOST}}}/mgmt/shared/ping)
+          STATUS=$(curl -sk -o /dev/null -w '%{http_code}' --max-time 5 https://$PEER/mgmt/shared/ping)
           if [ -n "$STATUS" ] && [ "$STATUS" != "000" ]; then
-            echo "peer {{{REMOTE_HOST}}} ready (HTTP $STATUS) on attempt $i"
+            echo "peer $PEER ready (HTTP $STATUS) on attempt $i"
             break
           fi
-          echo "waiting for peer {{{REMOTE_HOST}}} (attempt $i of 20)..."
+          echo "waiting for peer $PEER (attempt $i of 20)..."
           sleep 30
         done
         exit 0
