@@ -248,16 +248,6 @@ pre_onboard_enabled:
           sleep 30
         done
         exit 0
-  - name: wait_for_license
-    type: inline
-    commands:
-      - |
-        for i in $(seq 1 20); do
-          tmsh show sys license 2>&1 | grep -q "Licensed date" && echo "License active" && break
-          echo "waiting for PAYG license activation (attempt $i of 20)..."
-          sleep 30
-        done
-        exit 0
   - name: wait_for_peer
     type: inline
     commands:
