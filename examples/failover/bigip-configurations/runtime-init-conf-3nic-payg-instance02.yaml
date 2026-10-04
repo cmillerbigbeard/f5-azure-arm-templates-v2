@@ -248,6 +248,27 @@ pre_onboard_enabled:
           sleep 30
         done
         exit 0
+  - name: wait_for_peer
+    type: inline
+    commands:
+      - |
+        MGMT_GW=$(ip route show dev mgmt 2>/dev/null | awk '/via/{print $3; exit}')
+        [ -n "$MGMT_GW" ] && ip route add 169.254.169.254/32 via "$MGMT_GW" dev mgmt 2>/dev/null || true
+        PEER=$(curl -sf --max-time 10 -H 'Metadata: true' \
+          'http://169.254.169.254/metadata/instance/compute/tagsList?api-version=2021-02-01' \
+          | python -c "import sys,json; print(next((t['value'] for t in json.load(sys.stdin) if t['name']=='bigIpPeerAddr'),''))" 2>/dev/null)
+        if [ -z "$PEER" ]; then echo "bigIpPeerAddr tag not found, skipping wait"; exit 0; fi
+        echo "waiting for peer $PEER to respond..."
+        for i in $(seq 1 20); do
+          STATUS=$(curl -sk -o /dev/null -w '%{http_code}' --max-time 5 https://$PEER/mgmt/shared/ping)
+          if [ -n "$STATUS" ] && [ "$STATUS" != "000" ]; then
+            echo "peer $PEER ready (HTTP $STATUS) on attempt $i"
+            break
+          fi
+          echo "waiting for peer $PEER (attempt $i of 20)..."
+          sleep 30
+        done
+        exit 0
 runtime_parameters:
   - name: VAULT_URL
     type: url
