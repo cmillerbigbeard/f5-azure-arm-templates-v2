@@ -17,7 +17,7 @@
       "type": "bool"
     },
     "artifactLocation": {
-      "defaultValue": "azure-failover-17.5/examples/",
+      "defaultValue": "no-public-ip-2nic-internal/examples/",
       "metadata": {
         "description": "The directory, relative to the templateBaseUrl, where the modules folder is located."
       },
@@ -326,6 +326,9 @@
           "nsg1": {
             "value": "[variables('internalSecurityGroup')]"
           },
+          "nsg2": {
+            "value": []
+          },
           "numberPublicExternalIpAddresses": {
             "value": 0
           },
@@ -334,6 +337,12 @@
           },
           "tagValues": {
             "value": "[parameters('tagValues')]"
+          },
+          "nsg3": {
+            "value": []
+          },
+          "nsg4": {
+            "value": []
           }
         }
       }
