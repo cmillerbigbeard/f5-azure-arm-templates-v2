@@ -408,7 +408,7 @@
             "value": "[parameters('bigIpInternalSubnetId')]"
           },
           "nic1NsgId": {
-            "value": "[reference('dagTemplate').outputs.nsg1Id.value]"
+            "value": ""
           },
           "nic1PrimaryPublicId": {
             "value": ""
@@ -528,7 +528,7 @@
             "value": "[parameters('bigIpInternalSubnetId')]"
           },
           "nic1NsgId": {
-            "value": "[reference('dagTemplate').outputs.nsg1Id.value]"
+            "value": ""
           },
           "nic1PrimaryPublicId": {
             "value": ""
