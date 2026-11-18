@@ -137,13 +137,6 @@
       },
       "type": "string"
     },
-    "bigIpPeerAddr": {
-      "defaultValue": "10.0.1.11",
-      "metadata": {
-        "description": "Provide the static address of the remote peer used for clustering. In this failover solution, clustering is initiated from the second instance (02) to the first instance (01) so you would provide the first instances Self IP address."
-      },
-      "type": "string"
-    },
     "bigIpRuntimeInitConfig01": {
       "defaultValue": "",
       "metadata": {
@@ -493,7 +486,7 @@
             "value": "[parameters('bigIpLicenseKey02')]"
           },
           "bigIpPeerAddr": {
-            "value": "[parameters('bigIpPeerAddr')]"
+            "value": "[parameters('bigIpInternalSelfIp01')]"
           },
           "bigIpPeerHostname": {
             "value": "[parameters('bigIpHostname01')]"
