@@ -239,7 +239,15 @@
     "cfeStorageAccountName": "[if(not(empty(parameters('cfeStorageAccountName'))), parameters('cfeStorageAccountName'), concat(parameters('uniqueString'), 'stcfe'))]",
     "vmName01": "[concat(variables('uniqueString'), '-bigip-vm-01')]",
     "vmName02": "[concat(variables('uniqueString'), '-bigip-vm-02')]",
-    "internalNsgRulesArray": [],
+    "internalNsgRulesArray": [
+      {
+        "destinationPortRanges": [
+          "443"
+        ],
+        "sourceAddressPrefix": "[parameters('restrictedSrcAddressMgmt')]",
+        "protocol": "Tcp"
+      }
+    ],
     "internalSecurityGroup": "[variables('internalNsgRulesArray')]"
   },
   "resources": [
@@ -408,7 +416,7 @@
             "value": "[parameters('bigIpInternalSubnetId')]"
           },
           "nic1NsgId": {
-            "value": ""
+            "value": "[reference('dagTemplate').outputs.nsg1Id.value]"
           },
           "nic1PrimaryPublicId": {
             "value": ""
@@ -528,7 +536,7 @@
             "value": "[parameters('bigIpInternalSubnetId')]"
           },
           "nic1NsgId": {
-            "value": ""
+            "value": "[reference('dagTemplate').outputs.nsg1Id.value]"
           },
           "nic1PrimaryPublicId": {
             "value": ""
