@@ -44,14 +44,14 @@
       "type": "string"
     },
     "bigIpImage": {
-      "defaultValue": "f5-networks:f5-big-ip-best:f5-big-best-plus-hourly-25mbps:17.5.109174",
+      "defaultValue": "f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:21.1.004000",
       "metadata": {
-        "description": "2 formats accepted. URN of the image to use in Azure marketplace or id of custom image. Example URN value: f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:17.1.100002. You can find the URNs of F5 marketplace images in the README for this template or by running the command: az vm image list --output yaml --publisher f5-networks --all. See https://clouddocs.f5.com/cloud/public/v1/azure/Azure_download.html for information on creating custom BIG-IP image."
+        "description": "BYOL image to deploy, as publisher:offer:sku:version, or the resource ID of a custom image. Example: f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:21.1.004000. Supply a registration key for each unit in bigIpLicenseKey01 and bigIpLicenseKey02."
       },
       "type": "string"
     },
     "bigIpInstanceType": {
-      "defaultValue": "Standard_D8s_v4",
+      "defaultValue": "Standard_D8s_v5",
       "metadata": {
         "description": "Enter valid instance type."
       },
@@ -60,14 +60,14 @@
     "bigIpLicenseKey01": {
       "defaultValue": "",
       "metadata": {
-        "description": "Supply the F5 BYOL license key for BIG-IP instance 01. Leave this parameter blank if deploying the PAYG solution."
+        "description": "REQUIRED for BYOL - the F5 BYOL registration key for BIG-IP instance 01."
       },
       "type": "string"
     },
     "bigIpLicenseKey02": {
       "defaultValue": "",
       "metadata": {
-        "description": "Supply the F5 BYOL license key for BIG-IP instance 02. Leave this parameter blank if deploying the PAYG solution."
+        "description": "REQUIRED for BYOL - the F5 BYOL registration key for BIG-IP instance 02."
       },
       "type": "string"
     },
@@ -93,7 +93,7 @@
     },
     "restrictedSrcAddressMgmt": {
       "metadata": {
-        "description": "REQUIRED - Restricts management access (ports 22 and 443) to a specific network or address. Enter a private address range in CIDR notation, such as your management or bastion-free jump network."
+        "description": "REQUIRED - Restricts management access (ports 22 and 443) to a specific network or address, in CIDR notation, for example the private range of your jump host or management network."
       },
       "type": "string"
     },
@@ -140,14 +140,14 @@
     "bigIpRuntimeInitConfig01": {
       "defaultValue": "",
       "metadata": {
-        "description": "Optional. Supply a URL to the bigip-runtime-init configuration file in YAML or JSON format, or an escaped JSON string. Leave blank to auto-select the BYOL config when bigIpLicenseKey01 is set, otherwise the PAYG config (3nic or 2nic per numNics, without the example app)."
+        "description": "Optional. Supply a URL to a bigip-runtime-init configuration file in YAML or JSON format, or an escaped JSON string. Leave blank to use the 2-NIC BYOL configuration for instance 01 from this branch."
       },
       "type": "string"
     },
     "bigIpRuntimeInitConfig02": {
       "defaultValue": "",
       "metadata": {
-        "description": "Optional. Supply a URL to the bigip-runtime-init configuration file in YAML or JSON format, or an escaped JSON string. Leave blank to auto-select the BYOL config when bigIpLicenseKey02 is set, otherwise the PAYG config (3nic or 2nic per numNics, without the example app)."
+        "description": "Optional. Supply a URL to a bigip-runtime-init configuration file in YAML or JSON format, or an escaped JSON string. Leave blank to use the 2-NIC BYOL configuration for instance 02 from this branch."
       },
       "type": "string"
     },
@@ -201,8 +201,8 @@
     }
   },
   "variables": {
-    "runtimeInitConfig01": "[if(empty(parameters('bigIpRuntimeInitConfig01')), concat(parameters('templateBaseUrl'), parameters('artifactLocation'), 'failover/bigip-configurations/runtime-init-conf-', '2', 'nic-', if(empty(parameters('bigIpLicenseKey01')), 'payg', 'byol'), '-instance01.yaml'), parameters('bigIpRuntimeInitConfig01'))]",
-    "runtimeInitConfig02": "[if(empty(parameters('bigIpRuntimeInitConfig02')), concat(parameters('templateBaseUrl'), parameters('artifactLocation'), 'failover/bigip-configurations/runtime-init-conf-', '2', 'nic-', if(empty(parameters('bigIpLicenseKey02')), 'payg', 'byol'), '-instance02.yaml'), parameters('bigIpRuntimeInitConfig02'))]",
+    "runtimeInitConfig01": "[if(empty(parameters('bigIpRuntimeInitConfig01')), concat(parameters('templateBaseUrl'), parameters('artifactLocation'), 'failover/bigip-configurations/runtime-init-conf-', '2', 'nic-', 'byol', '-instance01.yaml'), parameters('bigIpRuntimeInitConfig01'))]",
+    "runtimeInitConfig02": "[if(empty(parameters('bigIpRuntimeInitConfig02')), concat(parameters('templateBaseUrl'), parameters('artifactLocation'), 'failover/bigip-configurations/runtime-init-conf-', '2', 'nic-', 'byol', '-instance02.yaml'), parameters('bigIpRuntimeInitConfig02'))]",
     "contentVersion": "[deployment().properties.template.contentVersion]",
     "uniqueString": "[toLower(parameters('uniqueString'))]",
     "adminUsername": "[string('azureuser')]",
