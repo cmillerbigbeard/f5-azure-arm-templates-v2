@@ -2,7 +2,7 @@
 
 This template deploys a two-unit BIG-IP high-availability (HA) pair with Cloud Failover Extension (CFE) into an **existing** Azure virtual network. Each unit has two network interfaces, **management** and **internal**, and the deployment creates **no public IP addresses of any kind**: none on the BIG-IPs, and no bastion host, load balancer, example application or virtual server.
 
-It is derived from F5's `failover` solution template (`azuredeploy-existing-network.json`). The section "What differs from F5's template" lists every change.
+It is derived from the `failover` solution template (`azuredeploy-existing-network.json`) in [F5's repository](https://github.com/F5Networks/f5-azure-arm-templates-v2), which is not included here. The section "What differs from F5's template" lists every change.
 
 **Status of this guide.** Everything marked *Verified* was run by the author on 2026-11-18 and 2026-11-19 with the Azure CLI and the BIG-IP REST API. Everything marked *Not verified* was not run. Please read those parts before you rely on the template.
 

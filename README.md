@@ -1,64 +1,34 @@
-# F5 BIG-IP Azure ARM Templates
+# BIG-IP HA pair on Azure: 2 NICs (management + internal), no public IP addresses
 
-## BIG-IP HA pair, 2 NICs (management + internal), no public IP addresses
+Deploys a two-unit BIG-IP high-availability pair with Cloud Failover Extension into an **existing** Azure virtual network, with **no public IP addresses** on the BIG-IPs (no bastion, load balancer, example application or virtual server). BYOL licensing.
 
-Deploys a two-unit BIG-IP HA pair with Cloud Failover Extension into an existing Azure virtual network, with **no public IP addresses** on the BIG-IPs (no bastion, load balancer, example application or virtual server). BYOL.
-
-**Start here: [deployment guide](examples/failover/README-2nic-internal.md)**. It covers prerequisites (including outbound access from the internal subnet), every template parameter, the portal button and the Azure CLI steps, how to check that the pair formed, and what was and was not tested.
+**Start here: [deployment guide](examples/failover/README-2nic-internal.md).** It covers prerequisites (including the outbound access the BIG-IPs need), every template parameter, the portal button and the Azure CLI steps, how to check that the pair formed, and what was and was not tested.
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcmillerbigbeard%2Ff5-azure-arm-templates-v2%2Fazure-2nic-internal-offline%2Fexamples%2Ffailover%2Fazuredeploy-existing-network-2nic-internal.json)
 
-Read the guide before deploying: the button only opens the portal form, and the template needs an existing network with outbound access from the internal subnet.
+Read the guide before deploying: the button only opens the portal form, and the template needs an existing network with outbound access from the management subnet.
+
+**No internet access at all?** Section 13 of the guide covers an offline variant: the BIG-IPs install their automation packages from a web server inside your network, and two scripts in [examples/failover/offline](examples/failover/offline) license the units by hand and form the pair.
+
+**Cannot create roles in your subscription?** Section 14 of the guide covers deploying with a managed identity that someone else created beforehand.
+
+## What is in this repository
+
+| Path | What it is |
+|---|---|
+| `examples/failover/azuredeploy-existing-network-2nic-internal.json` | The template |
+| `examples/failover/README-2nic-internal.md` | The deployment guide |
+| `examples/failover/bigip-configurations/` | The BIG-IP onboarding configurations the template loads at first boot (BYOL, one per unit), and the install-only configuration for the offline variant |
+| `examples/failover/offline/` | The two scripts for the offline variant |
+| `examples/modules/` | The three linked templates (`access`, `bigip-standalone`, `dag`) that the template deploys |
+
+## Where this comes from
+
+This is derived from F5's `failover` solution in [F5Networks/f5-azure-arm-templates-v2](https://github.com/F5Networks/f5-azure-arm-templates-v2), reduced to two NICs, with the public IP addresses, bastion, load balancer and example application removed, and with the storage accounts created as `StorageV2`. F5's original templates, including the 3-NIC and autoscale solutions, are in F5's repository and are not part of this one. The guide's section "What differs from F5's template" lists every change.
+
+F5 does not provide technical support for this derived template.
 
 ---
-
-## BIG-IP 17.5 Failover Pair (3-NIC, PAYG) - Deploy to Azure
-
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcmillerbigbeard%2Ff5-azure-arm-templates-v2%2Fazure-failover-17.5%2Fexamples%2Ffailover%2Fazuredeploy-existing-network.json)
-
-HA pair with Cloud Failover Extension on BIG-IP 17.5, deployed into an existing VNet (management, external and internal subnets). This fork fixes two problems that stop the upstream v3.3.0.0 templates from deploying today: Azure no longer accepts Storage v1 accounts, and on BIG-IP 17.5 the `/Common/Root` trust domain is not initialised after first boot, so Declarative Onboarding fails to form the cluster. Details and test results: see [examples/failover/README.md](examples/failover/README.md) and upstream issue [#52](https://github.com/F5Networks/f5-azure-arm-templates-v2/issues/52).
-
-You will need: a unique string, an SSH public key, source-address restrictions, the three subnet IDs, and a BIG-IP admin password (or a Key Vault secret ID).
-
----
-
-
-[![Releases](https://img.shields.io/github/release/f5networks/f5-azure-arm-templates-v2.svg)](https://github.com/f5networks/f5-azure-arm-templates-v2/releases)
-[![Issues](https://img.shields.io/github/issues/f5networks/f5-azure-arm-templates-v2.svg)](https://github.com/f5networks/f5-azure-arm-templates-v2/issues)
-
-## F5 BIG-IP Azure ARM Templates 2.0
-
-
-## Introduction
-
-Welcome to the GitHub repository for F5's ARM Templates V2 for Azure deployments. All of the templates in this repository have been developed by F5 Networks engineers. This repository contains one main directory: *examples*.
-
-- **examples**<br>
-  These are our next-generation Cloud Solutions Templates 2.0 (CST2) which have been designed to provide an improved user experience with fewer templates, simplified deployments, customization via a new modular nested/linked architecture, and more. The example templates in this directory have been tested and verified to work as-is and are intended to provide reference deployments of F5 BIG-IP Virtual Editions. 
-
-## Template information
-
-Descriptions for each template are contained at the top of each template in the *Description* key.
-For additional information, including how the templates are generated or assistance in deploying a template, see the README.md file in the individual template directory.
-
-To get started, first checkout the /examples folder.
-
-## Getting Help
-
-Due to the heavy customization requirements of external cloud resources and BIG-IP configurations in these solutions, F5 does not provide technical support for deploying, customizing, or troubleshooting the templates themselves. However, the various underlying products and components used (for example: [F5 BIG-IP Virtual Edition](https://clouddocs.f5.com/cloud/public/v1/), [F5 BIG-IP Runtime Init](https://github.com/F5Networks/f5-bigip-runtime-init), [F5 Automation Toolchain](https://www.f5.com/pdf/products/automation-toolchain-overview.pdf) extensions, and [Cloud Failover Extension (CFE)](https://clouddocs.f5.com/products/extensions/f5-cloud-failover/latest/)) in the solutions located here are F5-supported and capable of being deployed with other orchestration tools. Problems found with the templates deployed as-is should be reported with a GitHub issue. Read more about [Support Policies](https://www.f5.com/company/policies/support-policies).
-
-
-For help with authoring and support for custom CST2 templates, we recommend engaging F5 Professional Services (PS).
-
-### Filing Issues
-
-If you find an issue, we would love to hear about it.
-
-- Use the **[Issues](https://github.com/F5Networks/f5-azure-arm-templates-v2/issues)** link on the GitHub menu bar in this repository for items such as enhancement, feature requests and bug fixes. Tell us as much as you can about what you found and how you found it.
-
-
----
-
 
 ### Copyright
 
