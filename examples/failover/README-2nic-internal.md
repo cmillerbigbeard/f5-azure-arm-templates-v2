@@ -335,7 +335,7 @@ These came from real failures and apply to anyone who deploys this template more
 
 ## 13. Deploying with no internet access at all (offline variant)
 
-**Use this only if you cannot allow the hosts in section 4.** It is a separate variant and **it is not the template at the top of this branch**: it lives on the branch `test-private-files` (a test branch, not a release), and the scripts it needs are in `examples/failover/offline/` there. The author verified it once, on BIG-IP 17.5.1.11, with the units having no route to the internet on either subnet. It needs more manual steps than the standard deployment and has limits, listed below.
+**Use this only if you cannot allow the hosts in section 4.** It uses the **same template** as the rest of this guide, with extra parameters, an install-only configuration file and two scripts (in `examples/failover/offline/`). The author verified it once, on BIG-IP 17.5.1.11, with the units having no route to the internet on either subnet. It needs more manual steps than the standard deployment and has limits, listed below.
 
 ### 13.1 What changes
 
@@ -356,7 +356,7 @@ Place these where the BIG-IP's management subnet can fetch them over **HTTP(S)**
 | AS3 `f5-appsvcs-3.51.0-5.noarch.rpm` | https://github.com/F5Networks/f5-appsvcs-extension/releases/download/v3.51.0/f5-appsvcs-3.51.0-5.noarch.rpm | `e151a9ccd0fd60c359f31839dc3a70bfcf2b46b9fedb8e1c37e67255ee482c0f` |
 | Cloud Failover `f5-cloud-failover-2.1.2-2.noarch.rpm` | https://github.com/F5Networks/f5-cloud-failover-extension/releases/download/v2.1.2/f5-cloud-failover-2.1.2-2.noarch.rpm | `476d38a4d32d6474ae5435b5d448b318e638db4655edf049944f854504310839` |
 | signing key `gpg.key` | https://f5-cft.s3.amazonaws.com/f5-bigip-runtime-init/gpg.key | `5e329086089056079b32f6828b2e2c6fde5dcae8bef62b1f06308af1ede7072b` |
-| install-only configuration `runtime-init-installonly.yaml` | `examples/failover/bigip-configurations/runtime-init-conf-2nic-installonly.yaml` on the `test-private-files` branch, with the three `extensionUrl` lines edited to your internal addresses | n/a |
+| install-only configuration `runtime-init-installonly.yaml` | `examples/failover/bigip-configurations/runtime-init-conf-2nic-installonly.yaml` in this repository, with the three `extensionUrl` lines edited to your internal addresses (replace `<INTERNAL-HOST>`) | n/a |
 
 The three RPM hashes are the values pinned in the template's configuration files, and the author's downloads matched them. The GitHub download links were assembled from GitHub's standard release layout; check each one before you rely on it.
 
@@ -366,7 +366,7 @@ Set these in addition to the usual ones (section 6), using your internal address
 
 | Parameter | Value |
 |---|---|
-| `templateBaseUrl` and `artifactLocation` | Where the template's linked modules load from. Azure itself fetches these when you deploy (this is separate from the BIG-IPs), so they must be reachable from Azure, for example the `test-private-files` branch on GitHub or a copy you host. The author used the GitHub branch. |
+| `templateBaseUrl` and `artifactLocation` | Where the template's linked modules load from. Azure itself fetches these when you deploy (this is separate from the BIG-IPs), so they must be reachable from Azure: the defaults (this branch on GitHub) work, or point them at a copy you host. The author's test used the GitHub branch. |
 | `bigIpRuntimeInitPackageUrl` | the internal address of `f5-bigip-runtime-init-2.0.3-1.gz.run` |
 | `bigIpRuntimeInitConfig01`, `bigIpRuntimeInitConfig02` | the internal address of the install-only configuration (the same file for both units) |
 | `bigIpRuntimeInitKeyUrl` | `--key https://<internal host>/gpg.key --skip-toolchain-metadata-sync` |
@@ -400,7 +400,8 @@ Then check the pair as in section 8, **using SSH to the unit** if REST login fro
 - **Cloud Failover cannot move addresses.** CFE needs to reach Azure's management endpoint (`management.azure.com`). With no route out it stores its declaration and retries a refused connection. The pair forms and synchronises, but **a failover will not move any Azure address**. If you later open a route from the internal subnet to those two hosts, this may start working; the author did not test that.
 - **The units log errors** for the IP reputation service (`api.bcti.brightcloud.com`). They are harmless.
 - **It was verified once,** on 17.5.1.11 with DO 1.44.0, AS3 3.51.0 and CFE 2.1.2. It has not been tried on 21.1 or with other package versions.
-- **It is not a released template.** The variant and its scripts are on a test branch.
+- **It is not a released template.** It has been run once, by its author, in a lab.
+- **The standard deployment (sections 2 to 12) was last run before the offline parameter and scripts were added to this branch.** The new parameter defaults to empty and should not change the standard behaviour, but that has not been re-tested on this branch.
 
 ## 14. Deploying with a pre-created managed identity (no permission to create roles)
 
