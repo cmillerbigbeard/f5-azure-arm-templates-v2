@@ -17,7 +17,7 @@
       "type": "bool"
     },
     "artifactLocation": {
-      "defaultValue": "no-public-ip-2nic-internal/examples/",
+      "defaultValue": "test-private-files/examples/",
       "metadata": {
         "description": "The directory, relative to the templateBaseUrl, where the modules folder is located."
       },
@@ -157,6 +157,13 @@
         "description": "URL for BIG-IP Runtime Init package"
       },
       "type": "string"
+    },
+    "bigIpRuntimeInitKeyUrl": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional. Installer options that point the runtime-init signature check at an internal GPG key and skip the online toolchain metadata sync, for example: --key https://host/gpg.key --skip-toolchain-metadata-sync. Leave empty for the default (the key is downloaded from f5-cft.s3.amazonaws.com)."
+      }
     },
     "cfeStorageAccountName": {
       "defaultValue": "",
@@ -448,6 +455,9 @@
           "bigIpRuntimeInitPackageUrl": {
             "value": "[parameters('bigIpRuntimeInitPackageUrl')]"
           },
+          "bigIpRuntimeInitKeyUrl": {
+            "value": "[parameters('bigIpRuntimeInitKeyUrl')]"
+          },
           "bigIpRuntimeInitConfig": {
             "value": "[variables('runtimeInitConfig01')]"
           },
@@ -567,6 +577,9 @@
           },
           "bigIpRuntimeInitPackageUrl": {
             "value": "[parameters('bigIpRuntimeInitPackageUrl')]"
+          },
+          "bigIpRuntimeInitKeyUrl": {
+            "value": "[parameters('bigIpRuntimeInitKeyUrl')]"
           },
           "bigIpRuntimeInitConfig": {
             "value": "[variables('runtimeInitConfig02')]"
