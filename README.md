@@ -6,7 +6,7 @@ Deploys a two-unit BIG-IP HA pair with Cloud Failover Extension into an existing
 
 **Start here: [deployment guide](examples/failover/README-2nic-internal.md)**. It covers prerequisites (including outbound access from the internal subnet), every template parameter, the portal button and the Azure CLI steps, how to check that the pair formed, and what was and was not tested.
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcmillerbigbeard%2Ff5-azure-arm-templates-v2%2Fno-public-ip-2nic-internal%2Fexamples%2Ffailover%2Fazuredeploy-existing-network-2nic-internal.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcmillerbigbeard%2Ff5-azure-arm-templates-v2%2Fazure-2nic-internal-offline%2Fexamples%2Ffailover%2Fazuredeploy-existing-network-2nic-internal.json)
 
 Read the guide before deploying: the button only opens the portal form, and the template needs an existing network with outbound access from the internal subnet.
 

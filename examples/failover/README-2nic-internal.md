@@ -33,7 +33,7 @@ It is derived from F5's `failover` solution template (`azuredeploy-existing-netw
 
 **Deploy to Azure button** (opens the portal's custom deployment page with this template loaded):
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcmillerbigbeard%2Ff5-azure-arm-templates-v2%2Fno-public-ip-2nic-internal%2Fexamples%2Ffailover%2Fazuredeploy-existing-network-2nic-internal.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcmillerbigbeard%2Ff5-azure-arm-templates-v2%2Fazure-2nic-internal-offline%2Fexamples%2Ffailover%2Fazuredeploy-existing-network-2nic-internal.json)
 
 *Not verified:* the author built this link and checked that the template and every file it loads resolve, but did **not** click it or complete the portal form. All deployments described here used the Azure CLI with the same template URL.
 
@@ -177,7 +177,7 @@ Azure reserves the first four and the last address of every subnet, so do not us
 | Parameter | Default | Notes |
 |---|---|---|
 | `templateBaseUrl` | `https://raw.githubusercontent.com/cmillerbigbeard/f5-azure-arm-templates-v2/` | Where the linked modules are fetched from. |
-| `artifactLocation` | `no-public-ip-2nic-internal/examples/` | Path under the base URL. **Both defaults point at this branch of the fork**, so the template and the files it loads match. Do not change them to F5's download site: its copies still create general-purpose v1 storage and use the old interface names. |
+| `artifactLocation` | `azure-2nic-internal-offline/examples/` | Path under the base URL. **Both defaults point at this branch of the fork**, so the template and the files it loads match. Do not change them to F5's download site: its copies still create general-purpose v1 storage and use the old interface names. |
 | `bigIpRuntimeInitPackageUrl` | F5 download site, runtime-init v2.0.3 | The BIG-IP runtime-init package. |
 | `bigIpRuntimeInitConfig01`, `02` | empty | Optional replacement BIG-IP onboarding configuration (a URL or an escaped JSON string). If empty, the template picks the BYOL 2-NIC configuration from this branch. |
 
@@ -236,13 +236,13 @@ Azure reserves the first four and the last address of every subnet, so do not us
 4. Validate (creates nothing):
 
    ```
-   az deployment group validate -g <new-resource-group> --template-uri "https://raw.githubusercontent.com/cmillerbigbeard/f5-azure-arm-templates-v2/no-public-ip-2nic-internal/examples/failover/azuredeploy-existing-network-2nic-internal.json" --parameters @params.json
+   az deployment group validate -g <new-resource-group> --template-uri "https://raw.githubusercontent.com/cmillerbigbeard/f5-azure-arm-templates-v2/azure-2nic-internal-offline/examples/failover/azuredeploy-existing-network-2nic-internal.json" --parameters @params.json
    ```
 
 5. Deploy:
 
    ```
-   az deployment group create -g <new-resource-group> -n <deployment-name> --template-uri "https://raw.githubusercontent.com/cmillerbigbeard/f5-azure-arm-templates-v2/no-public-ip-2nic-internal/examples/failover/azuredeploy-existing-network-2nic-internal.json" --parameters @params.json
+   az deployment group create -g <new-resource-group> -n <deployment-name> --template-uri "https://raw.githubusercontent.com/cmillerbigbeard/f5-azure-arm-templates-v2/azure-2nic-internal-offline/examples/failover/azuredeploy-existing-network-2nic-internal.json" --parameters @params.json
    ```
 
    Deployment takes about 15 to 20 minutes.
