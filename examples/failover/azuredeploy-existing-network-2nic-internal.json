@@ -138,31 +138,27 @@
       "type": "string"
     },
     "bigIpRuntimeInitConfig01": {
-      "defaultValue": "",
       "metadata": {
-        "description": "Optional. Supply a URL to a bigip-runtime-init configuration file in YAML or JSON format, or an escaped JSON string. Leave blank to use the 2-NIC BYOL configuration for instance 01 from this branch."
+        "description": "REQUIRED. URL, inside your network, of the install-only runtime-init configuration file for instance 01 (runtime-init-conf-2nic-installonly.yaml with its three extensionUrl lines edited to your server). The same file is used for both units. See section 13 of the guide."
       },
       "type": "string"
     },
     "bigIpRuntimeInitConfig02": {
-      "defaultValue": "",
       "metadata": {
-        "description": "Optional. Supply a URL to a bigip-runtime-init configuration file in YAML or JSON format, or an escaped JSON string. Leave blank to use the 2-NIC BYOL configuration for instance 02 from this branch."
+        "description": "REQUIRED. URL, inside your network, of the install-only runtime-init configuration file for instance 02 (the same file as instance 01)."
       },
       "type": "string"
     },
     "bigIpRuntimeInitPackageUrl": {
-      "defaultValue": "https://cdn.f5.com/product/cloudsolutions/f5-bigip-runtime-init/v2.0.3/dist/f5-bigip-runtime-init-2.0.3-1.gz.run",
       "metadata": {
-        "description": "URL for BIG-IP Runtime Init package"
+        "description": "REQUIRED. URL, inside your network, of the runtime-init installer f5-bigip-runtime-init-2.0.3-1.gz.run. The BIG-IP downloads it at first boot from its management subnet, so use an address that subnet can reach (HTTP or HTTPS; a UNC or file-share path will not work). Source: https://cdn.f5.com/product/cloudsolutions/f5-bigip-runtime-init/v2.0.3/dist/f5-bigip-runtime-init-2.0.3-1.gz.run"
       },
       "type": "string"
     },
     "bigIpRuntimeInitKeyUrl": {
       "type": "string",
-      "defaultValue": "",
       "metadata": {
-        "description": "Optional. Installer options that point the runtime-init signature check at an internal GPG key and skip the online toolchain metadata sync, for example: --key https://host/gpg.key --skip-toolchain-metadata-sync. Leave empty for the default (the key is downloaded from f5-cft.s3.amazonaws.com)."
+        "description": "REQUIRED. Installer options that point the package-signature check at an internal copy of the key and stop the installer reaching the internet, for example: --key https://<your server>/gpg.key --skip-toolchain-metadata-sync"
       }
     },
     "cfeStorageAccountName": {
@@ -208,8 +204,8 @@
     }
   },
   "variables": {
-    "runtimeInitConfig01": "[if(empty(parameters('bigIpRuntimeInitConfig01')), concat(parameters('templateBaseUrl'), parameters('artifactLocation'), 'failover/bigip-configurations/runtime-init-conf-', '2', 'nic-', 'byol', '-instance01.yaml'), parameters('bigIpRuntimeInitConfig01'))]",
-    "runtimeInitConfig02": "[if(empty(parameters('bigIpRuntimeInitConfig02')), concat(parameters('templateBaseUrl'), parameters('artifactLocation'), 'failover/bigip-configurations/runtime-init-conf-', '2', 'nic-', 'byol', '-instance02.yaml'), parameters('bigIpRuntimeInitConfig02'))]",
+    "runtimeInitConfig01": "[parameters('bigIpRuntimeInitConfig01')]",
+    "runtimeInitConfig02": "[parameters('bigIpRuntimeInitConfig02')]",
     "contentVersion": "[deployment().properties.template.contentVersion]",
     "uniqueString": "[toLower(parameters('uniqueString'))]",
     "adminUsername": "[string('azureuser')]",
@@ -640,6 +636,6 @@
     }
   },
   "metadata": {
-    "description": "BIG-IP HA pair, 2 NICs (management + internal), existing network, NO public IPs, NO VIP or example app."
+    "description": "BIG-IP HA pair, 2 NICs (management + internal), existing network, NO public IPs. OFFLINE: the BIG-IPs install from your own web server; see section 13 of the guide."
   }
 }
