@@ -37,24 +37,48 @@ def licensed(host, keyfile):
     return rc == 0 and ("registration key" in low or "licensed version" in low)
 
 
-def fetch_license_online(dossier):
-    """Post the dossier to activate.f5.com the way the web form does, return the licence text."""
-    page = urllib.request.urlopen(urllib.request.Request("https://activate.f5.com/license/dossier.jsp", headers={"User-Agent": "Mozilla/5.0"}), timeout=60).read().decode("utf-8", "replace")
+def _multipart(fields, boundary):
+    crlf = chr(13) + chr(10)
+    parts = []
+    for name, value in fields:
+        parts.append("--%s%sContent-Disposition: form-data; name=\"%s\"%s%s%s%s" % (boundary, crlf, name, crlf, crlf, value, crlf))
+    parts.append("--%s%sContent-Disposition: form-data; name=\"file\"; filename=\"\"%sContent-Type: application/octet-stream%s%s%s--%s--%s" % (boundary, crlf, crlf, crlf, crlf, crlf, boundary, crlf))
+    return "".join(parts).encode()
+
+
+def fetch_license_online(dossier, accept_terms=False):
+    """Post the dossier to activate.f5.com the way the web form does and return the licence text.
+    The site may show an End User Legal Agreement before the licence. It is accepted ONLY when accept_terms is True (the --accept-terms option),
+    because agreeing to F5's terms is the decision of whoever runs this, not of the script."""
+    import http.cookiejar
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+    ua = {"User-Agent": "Mozilla/5.0"}
+    page = opener.open(urllib.request.Request("https://activate.f5.com/license/dossier.jsp", headers=ua), timeout=60).read().decode("utf-8", "replace")
     action = re.search(r'<form[^>]*name="licenseForm"[^>]*action="([^"]+)"', page).group(1)
     url = urllib.parse.urljoin("https://activate.f5.com/license/", action)
     boundary = "----stage2boundary"
-    crlf = chr(13) + chr(10)
-    parts = []
-    for name, value in (("dossier", dossier), ("ipAddress", ""), ("submit", "Next")):
-        parts.append("--%s%sContent-Disposition: form-data; name=\"%s\"%s%s%s%s" % (boundary, crlf, name, crlf, crlf, value, crlf))
-    parts.append("--%s%sContent-Disposition: form-data; name=\"file\"; filename=\"\"%sContent-Type: application/octet-stream%s%s%s--%s--%s" % (boundary, crlf, crlf, crlf, crlf, crlf, boundary, crlf))
-    req = urllib.request.Request(url, data="".join(parts).encode(), headers={"Content-Type": "multipart/form-data; boundary=" + boundary, "User-Agent": "Mozilla/5.0"})
-    html = urllib.request.urlopen(req, timeout=90).read().decode("utf-8", "replace")
-    m = re.search(r"<textarea[^>]*>(.*?)</textarea>", html, re.S | re.I)
-    if m and "Registration Key" in m.group(1):
-        return m.group(1).replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&").strip()
+    req = urllib.request.Request(url, data=_multipart((("dossier", dossier), ("ipAddress", ""), ("submit", "Next")), boundary),
+                                 headers=dict(ua, **{"Content-Type": "multipart/form-data; boundary=" + boundary}))
+    html = opener.open(req, timeout=90).read().decode("utf-8", "replace")
+    for _ in range(3):
+        m = re.search(r"<textarea[^>]*>(.*?)</textarea>", html, re.S | re.I)
+        if m and "Registration Key" in m.group(1):
+            return m.group(1).replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&").strip()
+        form = re.search(r'<form[^>]*action="([^"]*accepteula[^"]*)"', html, re.I)
+        if form and 'name="eula_agree"' in html:
+            if not accept_terms:
+                raise RuntimeError("activate.f5.com is asking you to agree to the F5 Platform Terms of Use. Read them at https://activate.f5.com/license/dossier.jsp and rerun with --accept-terms if you agree, or use --manual and accept in a browser.")
+            eurl = urllib.parse.urljoin("https://activate.f5.com/license/", form.group(1))
+            # post back every field the agreement form carries (the terms text and the dossier it echoes) plus the checkbox, as a browser does
+            fields = [(n, v.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&").replace("&quot;", chr(34)))
+                      for n, v in re.findall(r'<textarea[^>]*name="([^"]+)"[^>]*>(.*?)</textarea>', html, re.S | re.I)]
+            fields += [("eula_agree", "on"), ("submit", "Next")]
+            body = urllib.parse.urlencode(fields).encode()
+            html = opener.open(urllib.request.Request(eurl, data=body, headers=dict(ua, **{"Content-Type": "application/x-www-form-urlencoded"})), timeout=90).read().decode("utf-8", "replace")
+            continue
+        break
     text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", re.sub(r"<script.*?</script>", "", html, flags=re.S | re.I)))
-    raise RuntimeError("activate.f5.com did not return licence text (terms step or error page). Page text: " + text[:400])
+    raise RuntimeError("activate.f5.com did not return licence text. Page text: " + text[:400])
 
 
 def main():
@@ -65,6 +89,7 @@ def main():
     ap.add_argument("--password-file", required=True, help="file holding the admin password to set (the same one stored in Key Vault)")
     ap.add_argument("--manual", action="store_true")
     ap.add_argument("--auto", action="store_true")
+    ap.add_argument("--accept-terms", action="store_true", help="agree to the F5 Platform Terms of Use on activate.f5.com for --auto (you are accepting them, not the script)")
     a = ap.parse_args()
     pw = open(a.password_file).read().strip()
 
@@ -107,7 +132,7 @@ def main():
             lines.append(line.rstrip(NL))
         lic = NL.join(lines).strip()
     else:
-        lic = fetch_license_online(dossier)
+        lic = fetch_license_online(dossier, accept_terms=a.accept_terms)
     if "Registration Key" not in lic:
         print("[%s] that does not look like licence text" % a.host)
         return 3

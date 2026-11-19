@@ -16,7 +16,7 @@ Deploys a two-unit BIG-IP high-availability pair with Cloud Failover Extension i
    | `bigIpRuntimeInitPackageUrl` | the URL of `f5-bigip-runtime-init-2.0.3-1.gz.run` on your server |
    | `bigIpRuntimeInitConfig01` and `bigIpRuntimeInitConfig02` | the URL of your edited install-only configuration (the same file for both units) |
    | `bigIpRuntimeInitKeyUrl` | `--key https://<your server>/gpg.key --skip-toolchain-metadata-sync` |
-   | `bigIpImage` | `f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:17.5.111000` (see "What has and has not been tested") |
+   | `bigIpImage` | `f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:21.1.004000` (the default; needs DO 1.49.0) or `...:17.5.111000` (works with DO 1.44.0). See "What has and has not been tested". |
 
    Each unit reads the `admin` password from Azure Key Vault at onboarding, so that vault must be reachable from the management subnet through a service or private endpoint (guide sections 13.3 and 14).
 3. **License the units and form the pair** with the two scripts in [examples/failover/offline](examples/failover/offline), run from a machine that can reach both management addresses over SSH. `stage2-license.py` prints each unit's dossier; you paste it into F5's activation page (https://activate.f5.com/license/dossier.jsp) from any computer with internet access and paste the licence text back. `stage2-apply.py` then applies the configuration and forms the pair. The BIG-IPs themselves never contact F5.
@@ -27,7 +27,7 @@ The button opens the Azure portal's custom deployment form for this template. En
 
 ## If the BIG-IPs can reach the internet
 
-Use the same template and leave the four offline parameters empty. The units then download their packages and activate their licence themselves, which needs outbound access **from the management subnet** (not only the internal one) to `raw.githubusercontent.com`, `cdn.f5.com`, `f5-cft.s3.amazonaws.com` and `activate.f5.com`. See guide sections 2 to 12.
+The four offline parameters are required on this branch. For a deployment where the BIG-IPs can reach the internet, point them at the public addresses instead: `bigIpRuntimeInitPackageUrl` at `https://cdn.f5.com/product/cloudsolutions/f5-bigip-runtime-init/v2.0.3/dist/f5-bigip-runtime-init-2.0.3-1.gz.run`, both `bigIpRuntimeInitConfig` parameters at the raw GitHub address of the BYOL files `runtime-init-conf-2nic-byol-instance01.yaml` and `...instance02.yaml` in `examples/failover/bigip-configurations/` on this branch, and `bigIpRuntimeInitKeyUrl` at an empty value. The units then download their packages and activate their licence themselves, which needs outbound access **from the management subnet** (not only the internal one) to `raw.githubusercontent.com`, `cdn.f5.com`, `f5-cft.s3.amazonaws.com` and `activate.f5.com`. Those configuration files pin DO 1.44.0, so this route works on 17.5 and not on 21.1. **This online route has not been re-tested on this branch since the offline parameters were made required**, and entering an empty value in the portal form has not been tried. See guide sections 2 to 12.
 
 **Cannot create roles in your subscription?** Guide section 14 covers deploying with a managed identity that someone else created beforehand.
 
@@ -35,9 +35,9 @@ Use the same template and leave the four offline parameters empty. The units the
 
 This was built and tested by one person in a lab, not by F5. Treat it as a reference, and run your own tests.
 
-- **Tested:** BIG-IP 17.5.1.11, with Declarative Onboarding 1.44.0, AS3 3.51.0 and Cloud Failover Extension 2.1.2. With no internet access on either subnet, the offline route installed both units, licensed them and formed a pair: both devices listed, `In Sync`, one `ACTIVE` and one `STANDBY`.
+- **Tested:** with no internet access on either subnet, the offline route installed both units, licensed them and formed a pair (both devices listed, `In Sync`, one `ACTIVE` and one `STANDBY`) on **BIG-IP 17.5.1.11 with Declarative Onboarding 1.44.0** and on **BIG-IP 21.1.0.4 with Declarative Onboarding 1.49.0**, each with AS3 3.51.0 and Cloud Failover Extension 2.1.2.
 - **Limits of the offline route:** Cloud Failover Extension cannot move Azure addresses without a route to `management.azure.com`, so a failover will not move any address until one exists. Licensing is manual. Remote REST login as `admin` returned `401` on units set up this way (cause not found), so the scripts work over SSH.
-- **Not verified:** BIG-IP 21.1. One lab deployment of `21.1.004000` failed during onboarding and the cause was not found, so 21.1 is **not verified**. The template's default `bigIpImage` is still `21.1.004000`; set it explicitly as shown above.
+- **BIG-IP 21.1 needs DO 1.49.0.** One lab deployment of 21.1 with the pinned DO 1.44.0 failed during onboarding; with DO 1.49.0 it worked. That failure was not repeated, so DO 1.44.0 is the likely, not proven, cause. DO 1.49.0 is not on GitHub or the public F5 download site: download it from F5's downloads site (it needs an F5 login) and host it with the other files (guide section 13.2).
 - **Not verified:** clicking the Deploy to Azure button and completing the portal form. Every deployment used the Azure CLI with the same template.
 - **Not verified:** client traffic through a virtual server during a failover, other VM sizes or regions, and availability zones.
 
