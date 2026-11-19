@@ -198,52 +198,52 @@ Azure reserves the first four and the last address of every subnet, so do not us
 
 1. Sign in and choose the subscription:
 
-   ```
-   az login
-   az account set --subscription "<subscription name or id>"
-   ```
+    ```
+    az login
+    az account set --subscription "<subscription name or id>"
+    ```
 
 2. Create a new resource group:
 
-   ```
-   az group create -n <new-resource-group> -l <region>
-   ```
+    ```
+    az group create -n <new-resource-group> -l <region>
+    ```
 
 3. Write `params.json` (a minimal BYOL example; replace every value in angle brackets):
 
-   ```json
-   {
-     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
-     "contentVersion": "1.0.0.0",
-     "parameters": {
-       "uniqueString": { "value": "myhapair1" },
-       "sshKey": { "value": "ssh-rsa AAAA... you@example" },
-       "restrictedSrcAddressMgmt": { "value": "10.20.0.0/16" },
-       "bigIpMgmtSubnetId": { "value": "/subscriptions/<id>/resourceGroups/<rg>/providers/Microsoft.Network/virtualNetworks/<vnet>/subnets/<mgmt>" },
-       "bigIpInternalSubnetId": { "value": "/subscriptions/<id>/resourceGroups/<rg>/providers/Microsoft.Network/virtualNetworks/<vnet>/subnets/<internal>" },
-       "bigIpInternalSelfIp01": { "value": "10.20.1.11" },
-       "bigIpInternalSelfIp02": { "value": "10.20.1.12" },
-       "bigIpMgmtAddress01": { "value": "10.20.0.11" },
-       "bigIpMgmtAddress02": { "value": "10.20.0.12" },
-       "bigIpImage": { "value": "f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:21.1.004000" },
-       "bigIpLicenseKey01": { "value": "<registration key 1>" },
-       "bigIpLicenseKey02": { "value": "<registration key 2>" },
-       "bigIpPasswordSecretValue": { "value": "<admin password>" }
-     }
-   }
-   ```
+    ```json
+    {
+      "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "uniqueString": { "value": "myhapair1" },
+        "sshKey": { "value": "ssh-rsa AAAA... you@example" },
+        "restrictedSrcAddressMgmt": { "value": "10.20.0.0/16" },
+        "bigIpMgmtSubnetId": { "value": "/subscriptions/<id>/resourceGroups/<rg>/providers/Microsoft.Network/virtualNetworks/<vnet>/subnets/<mgmt>" },
+        "bigIpInternalSubnetId": { "value": "/subscriptions/<id>/resourceGroups/<rg>/providers/Microsoft.Network/virtualNetworks/<vnet>/subnets/<internal>" },
+        "bigIpInternalSelfIp01": { "value": "10.20.1.11" },
+        "bigIpInternalSelfIp02": { "value": "10.20.1.12" },
+        "bigIpMgmtAddress01": { "value": "10.20.0.11" },
+        "bigIpMgmtAddress02": { "value": "10.20.0.12" },
+        "bigIpImage": { "value": "f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:21.1.004000" },
+        "bigIpLicenseKey01": { "value": "<registration key 1>" },
+        "bigIpLicenseKey02": { "value": "<registration key 2>" },
+        "bigIpPasswordSecretValue": { "value": "<admin password>" }
+      }
+    }
+    ```
 
 4. Validate (creates nothing):
 
-   ```
-   az deployment group validate -g <new-resource-group> --template-uri "https://raw.githubusercontent.com/cmillerbigbeard/f5-azure-arm-templates-v2/azure-2nic-internal-offline/examples/failover/azuredeploy-existing-network-2nic-internal.json" --parameters @params.json
-   ```
+    ```
+    az deployment group validate -g <new-resource-group> --template-uri "https://raw.githubusercontent.com/cmillerbigbeard/f5-azure-arm-templates-v2/azure-2nic-internal-offline/examples/failover/azuredeploy-existing-network-2nic-internal.json" --parameters @params.json
+    ```
 
 5. Deploy:
 
-   ```
-   az deployment group create -g <new-resource-group> -n <deployment-name> --template-uri "https://raw.githubusercontent.com/cmillerbigbeard/f5-azure-arm-templates-v2/azure-2nic-internal-offline/examples/failover/azuredeploy-existing-network-2nic-internal.json" --parameters @params.json
-   ```
+    ```
+    az deployment group create -g <new-resource-group> -n <deployment-name> --template-uri "https://raw.githubusercontent.com/cmillerbigbeard/f5-azure-arm-templates-v2/azure-2nic-internal-offline/examples/failover/azuredeploy-existing-network-2nic-internal.json" --parameters @params.json
+    ```
 
    Deployment takes about 15 to 20 minutes.
 
@@ -297,7 +297,7 @@ These came from real failures and apply to anyone who deploys this template more
 - No public IP is attached to any BIG-IP NIC. The only public IP in the test resource groups was the NAT gateway's. No bastion, load balancer or application VM was created.
 - On the standard deployments, both units reported 17.5.1.11, licensed, listing both devices, `In Sync`, one `ACTIVE` and one `STANDBY`, with the internal NIC named `internal`.
 - All storage accounts created were `StorageV2`.
-- **A pre-created managed identity works.** With `bigIpUserAssignManagedIdentity` and `bigIpPasswordSecretId` supplied, the deployment created no custom role, no role assignment and no Key Vault, and the pair formed (section 12). The test account was an owner, so this shows the template skips those resources; it does not prove a restricted account is sufficient.
+- **A pre-created managed identity works.** With `bigIpUserAssignManagedIdentity` and `bigIpPasswordSecretId` supplied (section 14), the deployment had no access-module step, so it did not create the custom role, role assignment or Key Vault (seen in the deployment's step list), and the pair formed. The test account was an owner, so this shows the template skips those steps; it does not prove that a restricted account is sufficient.
 - CFE moves an address on failover: with a secondary IP on the active unit's internal NIC and a matching virtual address in `traffic-group-1`, a forced failover moved the IP to the other unit's internal NIC, and back on the next failover. Azure reported the move about 70 seconds after the failover was requested, but that figure is limited by how often it was checked and is not a measured outage. **No traffic was sent to the address.**
 - **The offline variant (section 13) formed a pair with no internet access on either subnet,** on 17.5.1.11 with the pinned automation package versions.
 
