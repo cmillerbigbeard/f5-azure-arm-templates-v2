@@ -4,14 +4,14 @@ controls:
 extension_packages:
   install_operations:
     - extensionType: do
-      extensionVersion: 1.44.0
-      extensionHash: 3b05d9bcafbcf0b5b625ff81d6bab5ad26ed90c0dd202ded51756af3598a97ec
+      extensionVersion: 1.47.0
+      extensionHash: 2338ce270d5ee12405e59d4f712b09cd111b24b5f78aee41e90f8e61ee2a36e2
     - extensionType: as3
-      extensionVersion: 3.51.0
-      extensionHash: e151a9ccd0fd60c359f31839dc3a70bfcf2b46b9fedb8e1c37e67255ee482c0f
+      extensionVersion: 3.56.0
+      extensionHash: 69a9779a724edb9705ec22eb466f39a34d8facbc2f92336ce4ec088296d3530d
     - extensionType: cf
-      extensionVersion: 2.1.2
-      extensionHash: 476d38a4d32d6474ae5435b5d448b318e638db4655edf049944f854504310839
+      extensionVersion: 2.5.1
+      extensionHash: 7300299a79fdfd0507fb41d80725f791c94ea75269c2bba9e5f3e65b0cd9c661
 extension_services:
   service_operations:
     - extensionType: do
