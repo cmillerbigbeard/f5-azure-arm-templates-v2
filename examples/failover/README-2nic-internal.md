@@ -21,10 +21,12 @@ It is derived from F5's `failover` solution template (`azuredeploy-existing-netw
 9. [What differs from F5's template](#10-what-differs-from-f5s-template)
 10. [What was and was not verified](#11-what-was-and-was-not-verified)
 11. [Troubleshooting](#12-troubleshooting)
+12. [Deploying with no internet access at all (offline variant)](#13-deploying-with-no-internet-access-at-all-offline-variant)
+13. [Deploying with a pre-created managed identity](#14-deploying-with-a-pre-created-managed-identity-no-permission-to-create-roles)
 
 ## 2. Quick start
 
-1. Make sure you have the things in section 3, especially **outbound access from the internal subnet**.
+1. Make sure you have the things in section 3, especially **outbound access from the management subnet** (section 4). If you cannot allow any, see section 13.
 2. Gather the five required values: `uniqueString`, `sshKey`, `restrictedSrcAddressMgmt`, `bigIpMgmtSubnetId`, `bigIpInternalSubnetId`.
 3. Deploy with the portal button or the CLI (section 7).
 4. Confirm the pair formed (section 8). A successful deployment alone does not prove it.
@@ -40,10 +42,10 @@ It is derived from F5's `failover` solution template (`azuredeploy-existing-netw
 | You need | Detail |
 |---|---|
 | An existing virtual network | With **two different subnets**: one for management and one for the internal (data) network. |
-| Outbound access from the internal subnet | Because the units have no public IP, you must provide the route out. See section 4. **This is the requirement most likely to stop a deployment.** |
+| Outbound access from the **management** subnet (and the internal subnet) | Because the units have no public IP, you must provide the route out. See section 4. **This is the requirement most likely to stop a deployment.** If you cannot, see section 13. |
 | BIG-IP BYOL registration keys | One per unit, two in total. See section 5. |
 | An SSH public key | For the `azureuser` account on both VMs. |
-| Permission to create resources, roles and role assignments | The template creates a custom role, a role assignment, a managed identity, a Key Vault, three storage accounts and the VMs. |
+| Permission to create resources, roles and role assignments | The template creates a custom role, a role assignment, a managed identity, a Key Vault, three storage accounts and the VMs. If you cannot create roles, see section 14. |
 | A way to reach the units' private management addresses | A jump host, VPN or ExpressRoute. The template creates none. |
 | A **new resource group** for each deployment | See section 9: two deployments cannot share a resource group. |
 
@@ -51,26 +53,48 @@ Required Azure resource providers (they were already registered in the author's 
 
 ## 4. Network and outbound access
 
-**Why outbound access matters.** The BIG-IP's default route leaves through the **internal** NIC. At first boot each unit downloads its automation packages and, for BYOL, activates its licence. CFE calls Azure APIs when it needs to move an address. A unit that cannot reach the internet cannot onboard.
+**Why outbound access matters.** At first boot each unit downloads its onboarding configuration and automation packages and, for BYOL, activates its licence. CFE calls Azure when it moves an address. A unit with no route to the internet cannot complete the standard deployment.
 
-**What to provide:** a route to the internet from the **internal subnet**, for example an Azure NAT gateway attached to that subnet, or a firewall or proxy route.
+**Which subnet needs the route: the management subnet.** At first boot a unit has only its management interface. The internal interface does not exist at the operating-system level until Declarative Onboarding creates it, which happens *after* the first downloads. The unit's only default route at that point is the **management** one, so **the first-boot downloads leave through the management subnet.** After onboarding, the data-plane default route points at the internal subnet and ordinary traffic leaves that way, but this does not help the first boot.
 
-**What the author tested** (all with 17.5.1.11, BYOL):
+**What to provide (standard deployment):** a route to the internet from the **management subnet**, for example an Azure NAT gateway attached to it, or a firewall or proxy route that allows the hosts below. A route from the internal subnet is also needed for CFE and for traffic your applications send.
+
+**Hosts the units contact (port 443).**
+
+| Host | Used for | Basis |
+|---|---|---|
+| `raw.githubusercontent.com` | the onboarding configuration file (default; avoidable, see below) | Observed in the first-boot log |
+| `cdn.f5.com` | the runtime-init installer and the DO, AS3 and CFE packages | Observed in the first-boot log |
+| `f5-cft.s3.amazonaws.com` | the key that verifies the runtime-init package | Observed in the first-boot log |
+| `activate.f5.com` | BYOL licence activation | Observed to answer from a unit (HTTP 301); not seen in a log |
+| `management.azure.com`, `login.microsoftonline.com` | CFE moving addresses at failover | Required by CFE per F5's documentation; not observed in a log |
+
+This list comes from logs and spot checks on one deployment, not from a packet capture, so treat it as a minimum and confirm it with your firewall logs.
+
+**What the author tested** (BIG-IP 17.5.1.11, BYOL):
 
 | Test | Result |
 |---|---|
 | NAT gateway on both subnets | *Verified.* Both units onboarded, licensed and paired. |
-| NAT gateway on the internal subnet only (management subnet had Azure's default outbound access, no NAT) | *Verified.* Both units onboarded, licensed and paired (deployment `twonic6`). |
-| Both subnets with default outbound access **switched off** and no NAT | See section 11. The result is recorded there. |
+| NAT gateway on the **internal** subnet only, management subnet **with** Azure's default outbound access | Worked, but this result is **misleading**: the management subnet still had a route out through Azure's default outbound access, which is what the first boot used. |
+| Management subnet with default outbound access **switched off** and no NAT (internal subnet with NAT) | *Verified failure.* Unit 01 retried the first download (`raw.githubusercontent.com`) for 16 minutes without success. |
+| No outbound route on either subnet, standard template | *Verified failure.* The download of `cdn.f5.com` timed out, the runtime-init package was never installed and the onboarding script exited with status 127. No licence was activated. |
+| No internet on either subnet, using the offline variant (section 13) | *Verified.* The pair formed. |
 | Firewall or proxy route instead of NAT | *Not verified.* |
 
-**About the NAT gateway's public IP.** An Azure NAT gateway uses a public IP address of its own. That address belongs to your network, not to the BIG-IPs. If your requirement is that nothing in the VNet has a public IP, use a firewall or proxy route instead (not verified).
+**Do not rely on Azure's "default outbound access".** Subnets with no NAT gateway or other explicit outbound method still get a shared, Microsoft-managed public IP unless the subnet's `defaultOutboundAccess` is `false`. Microsoft is retiring this default for new subnets.
 
-**Azure's "default outbound access".** Subnets that have no NAT gateway or other explicit outbound method still get Azure's default outbound access (a shared, Microsoft-managed public IP) unless the subnet's `defaultOutboundAccess` is set to `false`. Microsoft has announced that this default is being retired for new subnets, so do not rely on it.
+**About the NAT gateway's public IP.** An Azure NAT gateway uses a public IP of its own. That address belongs to your network, not to the BIG-IPs. If nothing in your network may have a public IP, use a firewall or proxy route instead (not verified).
+
+**Moving the default route to the internal NIC from first boot is not possible** with this template. It would require changing the first-boot script in `modules/bigip-standalone/bigip.json`, which this solution deliberately does not modify.
+
+**If you cannot open any route to the internet,** see section 13.
 
 ## 5. Licensing
 
-This template uses **BYOL** licensing. `bigIpImage` is a BYOL image URN (the default is `f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:21.1.004000`), and you supply one registration key per unit in `bigIpLicenseKey01` and `bigIpLicenseKey02`. Both keys are required.
+This template uses **BYOL** licensing. `bigIpImage` is a BYOL image URN, and you supply one registration key per unit in `bigIpLicenseKey01` and `bigIpLicenseKey02`. Both keys are required.
+
+**Default image.** The template's default is `f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:21.1.004000`, chosen to match the image one customer uses. **That image did not onboard in the author's test with the template's pinned automation packages** (section 11). If you want a version that has been shown to work, set `bigIpImage` to `f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:17.5.111000`.
 
 Accept the image's marketplace terms once per subscription if you have not already:
 
@@ -84,9 +108,11 @@ To list the BYOL image versions available in your region:
 az vm image list --publisher f5-networks --offer f5-big-ip-byol --sku f5-big-all-2slot-byol --all --query "[].version" -o tsv
 ```
 
-**BIG-IP version.** See section 11 for the BIG-IP versions that were and were not tested with this template. The version of the BIG-IP automation packages (Declarative Onboarding, AS3 and Cloud Failover Extension) installed at first boot is set in the template's runtime-init configuration files in `examples/failover/bigip-configurations/`, and is independent of the image you choose.
+**Automation package versions.** The versions of Declarative Onboarding, AS3 and Cloud Failover Extension installed at first boot are set in the runtime-init files in `examples/failover/bigip-configurations/` (DO 1.44.0, AS3 3.51.0, CFE 2.1.2, each with a SHA-256 hash) and are independent of the image you choose.
 
 **BYOL keys are bound to a unit.** Deleting a VM does not release its key. Before you delete BYOL units, revoke the licence on each (`tmsh revoke sys license`), or the key stays bound to the deleted unit and cannot be reused.
+
+**Licensing needs to reach F5.** Activation contacts `activate.f5.com` from the unit. A unit that cannot reach it stays unlicensed and the standard onboarding fails. If you cannot allow that, license the units by hand (section 13).
 
 ## 6. Template parameters (complete reference)
 
@@ -135,7 +161,7 @@ Azure reserves the first four and the last address of every subnet, so do not us
 | Parameter | Default | Notes |
 |---|---|---|
 | `cfeTag` | `bigip_high_availability_solution` | Value of the `f5_cloud_failover_label` tag. CFE finds the network interfaces and addresses it may move by this tag, so keep it consistent with any other resources you tag for failover. |
-| `cfeStorageAccountName` | empty | Name for the CFE state storage account. If empty, the template uses `<uniqueString>stcfe`. Storage account names must be 3 to 24 lower-case letters and digits and globally unique. |
+| `cfeStorageAccountName` | empty | Name for the CFE state storage account. If empty, the template uses `<uniqueString>stcfe`. Storage account names must be **3 to 24 characters, lower-case letters and digits only (no capitals, no hyphens)** and globally unique. **The template does not check this**, and Azure rejects a bad name only at deployment (`AccountNameInvalid`). Example of a name that is rejected: `EUSF51PRD-failover-sa`; use `eusf51prdfailoversa`. |
 
 ### 6.5 Placement, tags and telemetry
 
@@ -267,20 +293,27 @@ These came from real failures and apply to anyone who deploys this template more
 
 **Verified** (Azure CLI, BIG-IP 17.5.1.11, BYOL with evaluation keys, one region, no availability zones):
 
-- Validation and deployment succeed from the branch URL, on three separate deployments.
+- Validation and deployment succeed from the branch URL, on several separate deployments.
 - No public IP is attached to any BIG-IP NIC. The only public IP in the test resource groups was the NAT gateway's. No bastion, load balancer or application VM was created.
-- On two deployments, both units reported 17.5.1.11, licensed, listing both devices, `In Sync`, one `ACTIVE` and one `STANDBY`, with the internal NIC named `internal`.
+- On the standard deployments, both units reported 17.5.1.11, licensed, listing both devices, `In Sync`, one `ACTIVE` and one `STANDBY`, with the internal NIC named `internal`.
 - All storage accounts created were `StorageV2`.
-- Outbound access through a NAT gateway on the internal subnet is sufficient, with or without NAT on the management subnet.
+- **A pre-created managed identity works.** With `bigIpUserAssignManagedIdentity` and `bigIpPasswordSecretId` supplied, the deployment created no custom role, no role assignment and no Key Vault, and the pair formed (section 12). The test account was an owner, so this shows the template skips those resources; it does not prove a restricted account is sufficient.
 - CFE moves an address on failover: with a secondary IP on the active unit's internal NIC and a matching virtual address in `traffic-group-1`, a forced failover moved the IP to the other unit's internal NIC, and back on the next failover. Azure reported the move about 70 seconds after the failover was requested, but that figure is limited by how often it was checked and is not a measured outage. **No traffic was sent to the address.**
+- **The offline variant (section 13) formed a pair with no internet access on either subnet,** on 17.5.1.11 with the pinned automation package versions.
+
+**Verified failures:**
+
+- **BIG-IP 21.1.0.4 (image `21.1.004000`) did not onboard** with Declarative Onboarding 1.44.0: the onboarding task failed with a server error and `rollback failed` (`read ECONNRESET`) while reading the device's configuration. The cause was not determined. A trial with newer DO, AS3 and CFE versions has not been run. The template's default image is 21.1.004000 anyway (see section 5).
+- No outbound route on the management subnet stops the first boot (section 4).
 
 **Not verified:**
 
 - Clicking the Deploy to Azure button and completing the portal form.
-- Any BIG-IP version other than 17.5.1.11, including 21.x.
+- Any BIG-IP version other than 17.5.1.11 working end to end.
 - Other VM sizes, other regions, availability zones.
 - A firewall or proxy route instead of a NAT gateway.
 - Client traffic through a virtual server during a failover, and the length of any outage.
+- CFE moving an address when the units cannot reach Azure (it cannot; section 13).
 - Upgrading or redeploying over an existing deployment.
 
 ## 12. Troubleshooting
@@ -289,10 +322,115 @@ These came from real failures and apply to anyone who deploys this template more
 |---|---|
 | `RoleAssignmentUpdateNotPermitted` | A second deployment in the same resource group (section 9). |
 | `ConflictError ... already exists in deleted state` | A reused `uniqueString` (section 9). |
+| `AuthorizationFailed ... roleDefinitions/write` or `roleAssignments/write` | The account deploying cannot create roles. Use a pre-created managed identity (section 14). |
+| `AccountNameInvalid ... is not a valid storage account name` | `cfeStorageAccountName` has capital letters, hyphens or is over 24 characters (section 6.4). |
 | `Property id 'C:/Program Files/Git/subscriptions/...' is invalid` | Git Bash rewrote a subnet ID (section 7.2). |
 | `InvalidTemplate ... property 'nsg1Id' doesn't exist` or `Property id '' ... networkSecurityGroup.id is invalid` | You are using an older copy of this template. Use the current one on this branch. |
 | `SecurityRuleParametersMissing` | The same: an older copy of this template. |
 | Deployment succeeds but a unit lists only itself | The pair did not form (section 8). Check `bigIpInternalSelfIp01` and connectivity between the units. |
-| Units never finish onboarding | No outbound access from the internal subnet (section 4). |
+| `onboarder` extension fails with `exit status=127` and `Connection timed out` to `cdn.f5.com` | No outbound route from the **management** subnet (section 4). |
+| The extension fails with a Declarative Onboarding error, `rollback failed`, `ECONNRESET` | Seen on BIG-IP 21.1 with the pinned DO version (section 11). Try a 17.5 image. |
 | `MissingSubscriptionRegistration` or similar | A required resource provider is not registered (section 3). |
 | A licence key will not activate on a new unit | The key is still bound to a deleted unit. Revoke the licence before deleting units (section 5). |
+
+## 13. Deploying with no internet access at all (offline variant)
+
+**Use this only if you cannot allow the hosts in section 4.** It is a separate variant and **it is not the template at the top of this branch**: it lives on the branch `test-private-files` (a test branch, not a release), and the scripts it needs are in `examples/failover/offline/` there. The author verified it once, on BIG-IP 17.5.1.11, with the units having no route to the internet on either subnet. It needs more manual steps than the standard deployment and has limits, listed below.
+
+### 13.1 What changes
+
+The standard template downloads files from the internet at first boot and licenses the units online. The offline variant instead:
+
+1. **Takes every first-boot download from a location inside your network** that the management subnet can reach over HTTPS.
+2. **Installs the automation packages only**, and applies no declaration. The units come up unlicensed.
+3. **Is finished by two scripts** that license each unit by hand and then apply the declarations.
+
+### 13.2 Files to host internally
+
+Place these where the BIG-IP's management subnet can fetch them over **HTTP(S)**. The unit uses `curl`, so a **UNC or file-share path will not work**. An internal web server, a Nexus or Artifactory repository, or an Azure Storage account reachable only from that subnet (a service or private endpoint) all work. Use a certificate the BIG-IP trusts.
+
+| File | Download from | SHA-256 |
+|---|---|---|
+| runtime-init installer `f5-bigip-runtime-init-2.0.3-1.gz.run` | https://cdn.f5.com/product/cloudsolutions/f5-bigip-runtime-init/v2.0.3/dist/f5-bigip-runtime-init-2.0.3-1.gz.run | `e38fabfee268d6b965a7c801ead7a5708e5766e349cfa6a19dd3add52018549a` |
+| Declarative Onboarding `f5-declarative-onboarding-1.44.0-5.noarch.rpm` | https://github.com/F5Networks/f5-declarative-onboarding/releases/download/v1.44.0/f5-declarative-onboarding-1.44.0-5.noarch.rpm | `3b05d9bcafbcf0b5b625ff81d6bab5ad26ed90c0dd202ded51756af3598a97ec` |
+| AS3 `f5-appsvcs-3.51.0-5.noarch.rpm` | https://github.com/F5Networks/f5-appsvcs-extension/releases/download/v3.51.0/f5-appsvcs-3.51.0-5.noarch.rpm | `e151a9ccd0fd60c359f31839dc3a70bfcf2b46b9fedb8e1c37e67255ee482c0f` |
+| Cloud Failover `f5-cloud-failover-2.1.2-2.noarch.rpm` | https://github.com/F5Networks/f5-cloud-failover-extension/releases/download/v2.1.2/f5-cloud-failover-2.1.2-2.noarch.rpm | `476d38a4d32d6474ae5435b5d448b318e638db4655edf049944f854504310839` |
+| signing key `gpg.key` | https://f5-cft.s3.amazonaws.com/f5-bigip-runtime-init/gpg.key | `5e329086089056079b32f6828b2e2c6fde5dcae8bef62b1f06308af1ede7072b` |
+| install-only configuration `runtime-init-installonly.yaml` | `examples/failover/bigip-configurations/runtime-init-conf-2nic-installonly.yaml` on the `test-private-files` branch, with the three `extensionUrl` lines edited to your internal addresses | n/a |
+
+The three RPM hashes are the values pinned in the template's configuration files, and the author's downloads matched them. The GitHub download links were assembled from GitHub's standard release layout; check each one before you rely on it.
+
+### 13.3 Template parameters for the offline variant
+
+Set these in addition to the usual ones (section 6), using your internal addresses:
+
+| Parameter | Value |
+|---|---|
+| `templateBaseUrl` and `artifactLocation` | Where the template's linked modules load from. Azure itself fetches these when you deploy (this is separate from the BIG-IPs), so they must be reachable from Azure, for example the `test-private-files` branch on GitHub or a copy you host. The author used the GitHub branch. |
+| `bigIpRuntimeInitPackageUrl` | the internal address of `f5-bigip-runtime-init-2.0.3-1.gz.run` |
+| `bigIpRuntimeInitConfig01`, `bigIpRuntimeInitConfig02` | the internal address of the install-only configuration (the same file for both units) |
+| `bigIpRuntimeInitKeyUrl` | `--key https://<internal host>/gpg.key --skip-toolchain-metadata-sync` |
+
+**Key Vault.** Each unit reads the admin password from Key Vault at onboarding, using a Key Vault address it cannot reach over the internet in this setup. The vault must be reachable from the management subnet through a **service endpoint or private endpoint**. The author's test used a vault created beforehand (section 14), with a Key Vault service endpoint on the management subnet. A vault the template creates itself was not tested in the offline variant.
+
+### 13.4 Finishing the deployment (stage 2)
+
+After the deployment succeeds, the two units are installed and **unlicensed**. Run the two scripts from a machine that can reach both management addresses **over SSH** and holds the private key matching `sshKey`. A machine with no internet access is fine for these steps.
+
+**Step 1: license each unit** with `stage2-license.py`. For each unit:
+
+```
+python3 stage2-license.py --host <management IP> --regkey <registration key> --ssh-key <private key file> --password-file <file holding the admin password> --manual
+```
+
+The script logs in with the SSH key, **sets the admin password** (a unit that has not run Declarative Onboarding has no usable admin password), reads the unit's dossier and prints it. On any computer **with internet access**, open https://activate.f5.com/license/dossier.jsp, paste the dossier, and copy the licence text it returns. Paste that text into the script, followed by a line containing only `END`. The script installs it and waits until the unit reports licensed. The BIG-IP itself never contacts F5. (`--auto` is meant to do the web step itself when the machine running the script has internet access. The author exercised that exchange by calling the same function from a script, but ran the full procedure only with `--manual`.)
+
+**Step 2: apply the declarations** with `stage2-apply.py`, after **both** units are licensed:
+
+```
+python3 stage2-apply.py --yaml-dir examples/failover/bigip-configurations --password-file <password file> --ssh-key <private key file> --mgmt1 <unit 1 management IP> --mgmt2 <unit 2 management IP> --self1 <unit 1 internal IP> --self2 <unit 2 internal IP> --mgmt-gw <management subnet gateway> --internal-gw <internal subnet gateway>
+```
+
+It removes the `License` class from the declarations (the units are already licensed), applies unit 1's declaration, then unit 2's (which joins the cluster), and sends each Cloud Failover declaration. It needs Python 3 and PyYAML. It reaches each unit by SSH and calls the unit's REST API on the unit's own loopback address, because a remote REST login as `admin` returned `401` on units set up this way even with the correct password; the author did not find the cause.
+
+Then check the pair as in section 8, **using SSH to the unit** if REST login from your host fails.
+
+### 13.5 Limits of the offline variant
+
+- **Cloud Failover cannot move addresses.** CFE needs to reach Azure's management endpoint (`management.azure.com`). With no route out it stores its declaration and retries a refused connection. The pair forms and synchronises, but **a failover will not move any Azure address**. If you later open a route from the internal subnet to those two hosts, this may start working; the author did not test that.
+- **The units log errors** for the IP reputation service (`api.bcti.brightcloud.com`). They are harmless.
+- **It was verified once,** on 17.5.1.11 with DO 1.44.0, AS3 3.51.0 and CFE 2.1.2. It has not been tried on 21.1 or with other package versions.
+- **It is not a released template.** The variant and its scripts are on a test branch.
+
+## 14. Deploying with a pre-created managed identity (no permission to create roles)
+
+By default the template creates a custom role, a role assignment, a user-assigned managed identity and a Key Vault. That needs permission to **write role definitions and role assignments** (`Microsoft.Authorization/roleDefinitions/write` and `Microsoft.Authorization/roleAssignments/write`). If your account lacks them, the deployment fails with `AuthorizationFailed`, as seen from a customer deployment.
+
+The alternative is for someone with those permissions to create four things **before** the deployment, then give the template the identity and the secret.
+
+### 14.1 What to create beforehand
+
+1. **A custom role** with the permissions below, assignable at the resource group that will hold the deployment (and the group that holds the identity, if different).
+2. **A user-assigned managed identity.**
+3. **A role assignment** giving that identity the custom role **at the resource group where the BIG-IPs will be deployed**. CFE uses it to read and change network interfaces and route tables there.
+4. **A Key Vault** holding the BIG-IP `admin` password as a secret, with an **access policy** for the identity allowing `get` and `list` on secrets. The vault must be reachable from the BIG-IPs.
+
+The custom role's permissions are exactly those the template's own access module defines:
+
+- **Actions (29):** `*/read`, `Microsoft.Authorization/*/read`, `Microsoft.Compute/locations/*/read`, `Microsoft.Compute/virtualMachineScaleSets/*/read`, `Microsoft.Compute/virtualMachineScaleSets/networkInterfaces/read`, `Microsoft.Compute/virtualMachines/*/read`, `Microsoft.Compute/virtualMachines/extensions/*`, `Microsoft.HybridCompute/machines/extensions/write`, `Microsoft.Insights/Register/Action`, `Microsoft.Insights/alertRules/*`, `Microsoft.Insights/diagnosticSettings/*`, `Microsoft.Network/*/join/action`, `Microsoft.Network/networkInterfaces/read`, `Microsoft.Network/networkInterfaces/write`, `Microsoft.Network/publicIPAddresses/read`, `Microsoft.Network/publicIPAddresses/write`, `Microsoft.Network/routeTables/*/read`, `Microsoft.Network/routeTables/*/write`, `Microsoft.OperationalInsights/*`, `Microsoft.OperationsManagement/*`, `Microsoft.Resources/deployments/*`, `Microsoft.Resources/subscriptions/read`, `Microsoft.Resources/subscriptions/resourceGroups/deployments/*`, `Microsoft.Resources/subscriptions/resourceGroups/read`, `Microsoft.Storage/storageAccounts/blobServices/containers/read`, `Microsoft.Storage/storageAccounts/blobServices/containers/write`, `Microsoft.Storage/storageAccounts/listKeys/action`, `Microsoft.Storage/storageAccounts/read`, `Microsoft.Support/*`
+- **Data actions (4):** `Microsoft.Insights/Metrics/Write`, `Microsoft.Insights/Telemetry/Write`, `Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read`, `Microsoft.Storage/storageAccounts/blobServices/containers/blobs/write`
+
+### 14.2 Template parameters
+
+| Parameter | Value |
+|---|---|
+| `bigIpUserAssignManagedIdentity` | the managed identity's full resource ID |
+| `bigIpPasswordSecretId` | the secret's URL, for example `https://<vault name>.vault.azure.net/secrets/<secret name>` (the secret **ID**, not its value) |
+| `bigIpPasswordSecretValue` | leave empty |
+
+With these set, the template creates **no custom role, no role assignment and no Key Vault** (verified; section 11). It also does not read the password itself: each BIG-IP fetches it from the vault.
+
+**What the secret is for.** The secret holds the password for the BIG-IP `admin` account. At onboarding each unit reads it from the vault and sets `admin` to that value. You enter the secret's address in `bigIpPasswordSecretId`, or the password itself in `bigIpPasswordSecretValue` (in which case the template creates a vault and stores it). Supply one of them, not both.
+
+**The deploying account still needs** permission to create the other resources (virtual machines, network interfaces, storage accounts, network security groups, tags) in the target resource group.
+
