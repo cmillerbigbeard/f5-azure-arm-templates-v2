@@ -17,7 +17,7 @@
       "type": "bool"
     },
     "artifactLocation": {
-      "defaultValue": "no-public-ip-2nic-internal/examples/",
+      "defaultValue": "test-early-extramb/examples/",
       "metadata": {
         "description": "The directory, relative to the templateBaseUrl, where the modules folder is located."
       },
