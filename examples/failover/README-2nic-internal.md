@@ -108,7 +108,7 @@ To list the BYOL image versions available in your region:
 az vm image list --publisher f5-networks --offer f5-big-ip-byol --sku f5-big-all-2slot-byol --all --query "[].version" -o tsv
 ```
 
-**Automation package versions.** The versions of Declarative Onboarding, AS3 and Cloud Failover Extension installed at first boot are set in the runtime-init files in `examples/failover/bigip-configurations/` (DO 1.44.0, AS3 3.51.0, CFE 2.1.2, each with a SHA-256 hash) and are independent of the image you choose. **Those files pin DO 1.44.0, which does not work on BIG-IP 21.1.** For 21.1, use the offline route in section 13 with DO 1.49.0 (it is not on GitHub or the public F5 download site, so you host it yourself), or edit the pinned version and hash in your own copy of the configuration.
+**Automation package versions.** The versions of Declarative Onboarding, AS3 and Cloud Failover Extension installed at first boot are set in the runtime-init files in `examples/failover/bigip-configurations/` (DO 1.44.0, AS3 3.51.0, CFE 2.1.2, each with a SHA-256 hash) and are independent of the image you choose. **Those files pin DO 1.44.0, which does not work on BIG-IP 21.1.** For 21.1, use the offline route in section 13 with DO 1.49.0: it is not on GitHub or the public F5 download site, so you host it yourself. (For a deployment where the BIG-IPs can reach the internet, the online branch `no-public-ip-2nic-internal` has a procedure and ready-made configuration files for 21.1: https://github.com/cmillerbigbeard/f5-azure-arm-templates-v2/tree/no-public-ip-2nic-internal .)
 
 **BYOL keys are bound to a unit.** Deleting a VM does not release its key. Before you delete BYOL units, revoke the licence on each (`tmsh revoke sys license`), or the key stays bound to the deleted unit and cannot be reused.
 
@@ -291,7 +291,7 @@ These came from real failures and apply to anyone who deploys this template more
 
 ## 11. What was and was not verified
 
-**Verified** (Azure CLI, BIG-IP 17.5.1.11, BYOL with evaluation keys, one region, no availability zones):
+**Verified** (Azure CLI, BYOL with evaluation keys, one region, no availability zones; most results on BIG-IP 17.5.1.11, and the 21.1.0.4 results are stated as such):
 
 - Validation and deployment succeed from the branch URL, on several separate deployments.
 - No public IP is attached to any BIG-IP NIC. The only public IP in the test resource groups was the NAT gateway's. No bastion, load balancer or application VM was created.
@@ -299,6 +299,7 @@ These came from real failures and apply to anyone who deploys this template more
 - All storage accounts created were `StorageV2`.
 - **A pre-created managed identity works.** With `bigIpUserAssignManagedIdentity` and `bigIpPasswordSecretId` supplied (section 14), the deployment had no access-module step, so it did not create the custom role, role assignment or Key Vault (seen in the deployment's step list), and the pair formed. The test account was an owner, so this shows the template skips those steps; it does not prove that a restricted account is sufficient.
 - CFE moves an address on failover: with a secondary IP on the active unit's internal NIC and a matching virtual address in `traffic-group-1`, a forced failover moved the IP to the other unit's internal NIC, and back on the next failover. Azure reported the move about 70 seconds after the failover was requested, but that figure is limited by how often it was checked and is not a measured outage. **No traffic was sent to the address.**
+- **A standard (online) deployment on BIG-IP 21.1.0.4 formed a pair** with DO 1.49.0 (section 5.1): the template created its own role, identity and Key Vault, the units downloaded AS3 and CFE through a NAT gateway and DO 1.49.0 from a hosted file, and both were licensed, `In Sync`, one `ACTIVE` and one `STANDBY`. One runtime-init telemetry message on unit 02, "Digital asset id ... is already registered", did not affect onboarding.
 - **The offline variant (section 13) formed a pair with no internet access on either subnet,** on 17.5.1.11 with DO 1.44.0, AS3 3.51.0 and CFE 2.1.2, **and on 21.1.0.4 with DO 1.49.0**, AS3 3.51.0 and CFE 2.1.2: both devices listed, `In Sync`, one `ACTIVE` and one `STANDBY`.
 
 **Verified failures:**
@@ -309,7 +310,7 @@ These came from real failures and apply to anyone who deploys this template more
 **Not verified:**
 
 - Clicking the Deploy to Azure button and completing the portal form.
-- Any BIG-IP version other than 17.5.1.11 working end to end.
+- BIG-IP versions other than 17.5.1.11 and 21.1.0.4, and BIG-IP 21.1 with DO 1.44.0 a second time.
 - Other VM sizes, other regions, availability zones.
 - A firewall or proxy route instead of a NAT gateway.
 - Client traffic through a virtual server during a failover, and the length of any outage.
