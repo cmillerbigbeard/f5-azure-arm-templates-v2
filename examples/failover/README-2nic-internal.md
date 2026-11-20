@@ -94,7 +94,7 @@ This list comes from logs and spot checks on one deployment, not from a packet c
 
 This template uses **BYOL** licensing. `bigIpImage` is a BYOL image URN, and you supply one registration key per unit in `bigIpLicenseKey01` and `bigIpLicenseKey02`. Both keys are required.
 
-**Default image.** The template's default is `f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:21.1.004000`, chosen to match the image one customer uses. **BIG-IP 21.1 needs Declarative Onboarding 1.49.0.** In the author's tests, 21.1.0.4 onboarded and formed a pair with DO 1.49.0 (offline route, section 13), but a deployment with the pinned DO 1.44.0 failed during onboarding (section 11). BIG-IP 17.5.1.11 works with DO 1.44.0: set `bigIpImage` to `f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:17.5.111000` if you want that combination.
+**Default image and size.** The template's default is `f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:21.1.004000` on `Standard_D8s_v5` (32 GB), chosen to match what one customer uses. BIG-IP 21.1 on that size needs more host (control-plane) memory than F5's module sets by default, so **this repository's copy of the first-boot script sets `provision.extramb` to 3000 instead of F5's 1000**. With the original 1000, 21.1 with the default Declarative Onboarding (DO) 1.44.0 failed in 5 of 5 runs on `Standard_D8s_v5`; with 3000 it passed in 7 of 7 runs on the online route (the online branch's tests). On this branch the offline route was tested on 21.1 with DO 1.49.0 (before this setting existed) and has not been re-run with it. The trade-off is that about 2 GB moves from the traffic engine's reserved memory to the host, and the effect on traffic handling was **not tested**. Other options that worked in the author's tests are a 64 GB size (`Standard_D16s_v5`) or DO 1.49.0 (section 13.2). BIG-IP 17.5.1.11 also works with DO 1.44.0 on `Standard_D8s_v5`: set `bigIpImage` to `f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:17.5.111000` if you want that combination. Section 11 has the full results.
 
 Accept the image's marketplace terms once per subscription if you have not already:
 
@@ -287,7 +287,7 @@ These came from real failures and apply to anyone who deploys this template more
 - **The internal NIC has a network security group with one rule** (the management source, TCP 443). Azure's default rules allow traffic inside the virtual network, which the pair uses to synchronise. Add your own rules for your applications.
 - **Storage accounts are created as `StorageV2`** (general-purpose v2). Templates loaded from F5's default download site still create the retired general-purpose v1 type, which Azure no longer lets you create.
 - The template's modules and BIG-IP configuration files load from **this branch**.
-- The shared F5 modules are **not modified**.
+- **F5's linked modules:** `modules/access/access.json` and `modules/dag/dag.json` are F5's own files, unchanged. `modules/bigip-standalone/bigip.json` (the BIG-IP virtual machine module) has two changes: (1) an optional parameter, `bigIpRuntimeInitKeyUrl`, inserted into the runtime-init installer command so that the installer's signature key can be taken from an internal address (section 13); when it is empty the installer command is identical to F5's; and (2) its first-boot script sets `provision.extramb` to 3000 instead of F5's 1000 (section 5). The rest of the first-boot script is F5's.
 
 ## 11. What was and was not verified
 

@@ -217,7 +217,10 @@ pre_onboard_enabled:
   - name: provision_rest
     type: inline
     commands:
-      - /usr/bin/setdb provision.extramb 1000 || exit 0
+      # Host (control-plane) memory: 3000 MB, the same value the module's first-boot script (modules/bigip-standalone/bigip.json) sets. The first-boot script is what
+      # guarantees it: this step can run while the BIG-IP is still provisioning and then be refused, and its failure is ignored by the '|| exit 0' below.
+      # At 1000 MB, BIG-IP 21.1 on a 32 GB VM failed to onboard in 5 of 5 test runs. It moves about 2 GB from TMM hugepages to the host.
+      - /usr/bin/setdb provision.extramb 3000 || exit 0
       - /usr/bin/setdb provision.restjavad.extramb 1384 || /usr/bin/setdb restjavad.useextramb
         true || exit 0
 runtime_parameters:
