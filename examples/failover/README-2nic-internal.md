@@ -2,7 +2,7 @@
 
 This template deploys a two-unit BIG-IP high-availability (HA) pair with Cloud Failover Extension (CFE) into an **existing** Azure virtual network. Each unit has two network interfaces, **management** and **internal**, and the deployment creates **no public IP addresses of any kind**: none on the BIG-IPs, and no bastion host, load balancer, example application or virtual server.
 
-It is derived from F5's `failover` solution template (`azuredeploy-existing-network.json`). The section "What differs from F5's template" lists every change.
+It is derived from the `failover` solution template (`azuredeploy-existing-network.json`) in [F5's repository](https://github.com/F5Networks/f5-azure-arm-templates-v2), which is not included here. The section "What differs from F5's template" lists every change.
 
 **Status of this guide.** Everything marked *Verified* was run by the author on 2026-11-18 and 2026-11-19 with the Azure CLI and the BIG-IP REST API. Everything marked *Not verified* was not run. Please read those parts before you rely on the template.
 
@@ -94,7 +94,7 @@ This list comes from logs and spot checks on one deployment, not from a packet c
 
 This template uses **BYOL** licensing. `bigIpImage` is a BYOL image URN, and you supply one registration key per unit in `bigIpLicenseKey01` and `bigIpLicenseKey02`. Both keys are required.
 
-**Default image.** The template's default is `f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:21.1.004000`, chosen to match the image one customer uses. **That image did not onboard in the author's test with the template's pinned automation packages** (section 11). If you want a version that has been shown to work, set `bigIpImage` to `f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:17.5.111000`.
+**Default image.** The template's default is `f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:21.1.004000`, chosen to match the image one customer uses. **BIG-IP 21.1 needs Declarative Onboarding 1.49.0.** In the author's tests, 21.1.0.4 onboarded and formed a pair with DO 1.49.0 (offline route, section 13), but a deployment with the pinned DO 1.44.0 failed during onboarding (section 11). BIG-IP 17.5.1.11 works with DO 1.44.0: set `bigIpImage` to `f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:17.5.111000` if you want that combination.
 
 Accept the image's marketplace terms once per subscription if you have not already:
 
@@ -108,7 +108,7 @@ To list the BYOL image versions available in your region:
 az vm image list --publisher f5-networks --offer f5-big-ip-byol --sku f5-big-all-2slot-byol --all --query "[].version" -o tsv
 ```
 
-**Automation package versions.** The versions of Declarative Onboarding, AS3 and Cloud Failover Extension installed at first boot are set in the runtime-init files in `examples/failover/bigip-configurations/` (DO 1.44.0, AS3 3.51.0, CFE 2.1.2, each with a SHA-256 hash) and are independent of the image you choose.
+**Automation package versions.** The versions of Declarative Onboarding, AS3 and Cloud Failover Extension installed at first boot are set in the runtime-init files in `examples/failover/bigip-configurations/` (DO 1.44.0, AS3 3.51.0, CFE 2.1.2, each with a SHA-256 hash) and are independent of the image you choose. **Those files pin DO 1.44.0, which does not work on BIG-IP 21.1.** For 21.1, use the offline route in section 13 with DO 1.49.0 (it is not on GitHub or the public F5 download site, so you host it yourself), or edit the pinned version and hash in your own copy of the configuration.
 
 **BYOL keys are bound to a unit.** Deleting a VM does not release its key. Before you delete BYOL units, revoke the licence on each (`tmsh revoke sys license`), or the key stays bound to the deleted unit and cannot be reused.
 
@@ -198,52 +198,52 @@ Azure reserves the first four and the last address of every subnet, so do not us
 
 1. Sign in and choose the subscription:
 
-   ```
-   az login
-   az account set --subscription "<subscription name or id>"
-   ```
+    ```
+    az login
+    az account set --subscription "<subscription name or id>"
+    ```
 
 2. Create a new resource group:
 
-   ```
-   az group create -n <new-resource-group> -l <region>
-   ```
+    ```
+    az group create -n <new-resource-group> -l <region>
+    ```
 
 3. Write `params.json` (a minimal BYOL example; replace every value in angle brackets):
 
-   ```json
-   {
-     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
-     "contentVersion": "1.0.0.0",
-     "parameters": {
-       "uniqueString": { "value": "myhapair1" },
-       "sshKey": { "value": "ssh-rsa AAAA... you@example" },
-       "restrictedSrcAddressMgmt": { "value": "10.20.0.0/16" },
-       "bigIpMgmtSubnetId": { "value": "/subscriptions/<id>/resourceGroups/<rg>/providers/Microsoft.Network/virtualNetworks/<vnet>/subnets/<mgmt>" },
-       "bigIpInternalSubnetId": { "value": "/subscriptions/<id>/resourceGroups/<rg>/providers/Microsoft.Network/virtualNetworks/<vnet>/subnets/<internal>" },
-       "bigIpInternalSelfIp01": { "value": "10.20.1.11" },
-       "bigIpInternalSelfIp02": { "value": "10.20.1.12" },
-       "bigIpMgmtAddress01": { "value": "10.20.0.11" },
-       "bigIpMgmtAddress02": { "value": "10.20.0.12" },
-       "bigIpImage": { "value": "f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:21.1.004000" },
-       "bigIpLicenseKey01": { "value": "<registration key 1>" },
-       "bigIpLicenseKey02": { "value": "<registration key 2>" },
-       "bigIpPasswordSecretValue": { "value": "<admin password>" }
-     }
-   }
-   ```
+    ```json
+    {
+      "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "uniqueString": { "value": "myhapair1" },
+        "sshKey": { "value": "ssh-rsa AAAA... you@example" },
+        "restrictedSrcAddressMgmt": { "value": "10.20.0.0/16" },
+        "bigIpMgmtSubnetId": { "value": "/subscriptions/<id>/resourceGroups/<rg>/providers/Microsoft.Network/virtualNetworks/<vnet>/subnets/<mgmt>" },
+        "bigIpInternalSubnetId": { "value": "/subscriptions/<id>/resourceGroups/<rg>/providers/Microsoft.Network/virtualNetworks/<vnet>/subnets/<internal>" },
+        "bigIpInternalSelfIp01": { "value": "10.20.1.11" },
+        "bigIpInternalSelfIp02": { "value": "10.20.1.12" },
+        "bigIpMgmtAddress01": { "value": "10.20.0.11" },
+        "bigIpMgmtAddress02": { "value": "10.20.0.12" },
+        "bigIpImage": { "value": "f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:21.1.004000" },
+        "bigIpLicenseKey01": { "value": "<registration key 1>" },
+        "bigIpLicenseKey02": { "value": "<registration key 2>" },
+        "bigIpPasswordSecretValue": { "value": "<admin password>" }
+      }
+    }
+    ```
 
 4. Validate (creates nothing):
 
-   ```
-   az deployment group validate -g <new-resource-group> --template-uri "https://raw.githubusercontent.com/cmillerbigbeard/f5-azure-arm-templates-v2/no-public-ip-2nic-internal/examples/failover/azuredeploy-existing-network-2nic-internal.json" --parameters @params.json
-   ```
+    ```
+    az deployment group validate -g <new-resource-group> --template-uri "https://raw.githubusercontent.com/cmillerbigbeard/f5-azure-arm-templates-v2/no-public-ip-2nic-internal/examples/failover/azuredeploy-existing-network-2nic-internal.json" --parameters @params.json
+    ```
 
 5. Deploy:
 
-   ```
-   az deployment group create -g <new-resource-group> -n <deployment-name> --template-uri "https://raw.githubusercontent.com/cmillerbigbeard/f5-azure-arm-templates-v2/no-public-ip-2nic-internal/examples/failover/azuredeploy-existing-network-2nic-internal.json" --parameters @params.json
-   ```
+    ```
+    az deployment group create -g <new-resource-group> -n <deployment-name> --template-uri "https://raw.githubusercontent.com/cmillerbigbeard/f5-azure-arm-templates-v2/no-public-ip-2nic-internal/examples/failover/azuredeploy-existing-network-2nic-internal.json" --parameters @params.json
+    ```
 
    Deployment takes about 15 to 20 minutes.
 
@@ -297,13 +297,13 @@ These came from real failures and apply to anyone who deploys this template more
 - No public IP is attached to any BIG-IP NIC. The only public IP in the test resource groups was the NAT gateway's. No bastion, load balancer or application VM was created.
 - On the standard deployments, both units reported 17.5.1.11, licensed, listing both devices, `In Sync`, one `ACTIVE` and one `STANDBY`, with the internal NIC named `internal`.
 - All storage accounts created were `StorageV2`.
-- **A pre-created managed identity works.** With `bigIpUserAssignManagedIdentity` and `bigIpPasswordSecretId` supplied, the deployment created no custom role, no role assignment and no Key Vault, and the pair formed (section 12). The test account was an owner, so this shows the template skips those resources; it does not prove a restricted account is sufficient.
+- **A pre-created managed identity works.** With `bigIpUserAssignManagedIdentity` and `bigIpPasswordSecretId` supplied (section 14), the deployment had no access-module step, so it did not create the custom role, role assignment or Key Vault (seen in the deployment's step list), and the pair formed. The test account was an owner, so this shows the template skips those steps; it does not prove that a restricted account is sufficient.
 - CFE moves an address on failover: with a secondary IP on the active unit's internal NIC and a matching virtual address in `traffic-group-1`, a forced failover moved the IP to the other unit's internal NIC, and back on the next failover. Azure reported the move about 70 seconds after the failover was requested, but that figure is limited by how often it was checked and is not a measured outage. **No traffic was sent to the address.**
-- **The offline variant (section 13) formed a pair with no internet access on either subnet,** on 17.5.1.11 with the pinned automation package versions.
+- **The offline variant (section 13) formed a pair with no internet access on either subnet,** on 17.5.1.11 with DO 1.44.0, AS3 3.51.0 and CFE 2.1.2, **and on 21.1.0.4 with DO 1.49.0**, AS3 3.51.0 and CFE 2.1.2: both devices listed, `In Sync`, one `ACTIVE` and one `STANDBY`.
 
 **Verified failures:**
 
-- **BIG-IP 21.1.0.4 (image `21.1.004000`) did not onboard** with Declarative Onboarding 1.44.0: the onboarding task failed with a server error and `rollback failed` (`read ECONNRESET`) while reading the device's configuration. The cause was not determined. A trial with newer DO, AS3 and CFE versions has not been run. The template's default image is 21.1.004000 anyway (see section 5).
+- **BIG-IP 21.1.0.4 (image `21.1.004000`) did not onboard with Declarative Onboarding 1.44.0** in one deployment: the onboarding task failed with a server error and `rollback failed` (`read ECONNRESET`) while reading the device's configuration. That deployment was not repeated with 1.44.0, so the cause is likely, not proven, to be that DO version. The same image **did** onboard with DO 1.49.0 (section 13), so use 1.49.0 on 21.1.
 - No outbound route on the management subnet stops the first boot (section 4).
 
 **Not verified:**
@@ -329,13 +329,13 @@ These came from real failures and apply to anyone who deploys this template more
 | `SecurityRuleParametersMissing` | The same: an older copy of this template. |
 | Deployment succeeds but a unit lists only itself | The pair did not form (section 8). Check `bigIpInternalSelfIp01` and connectivity between the units. |
 | `onboarder` extension fails with `exit status=127` and `Connection timed out` to `cdn.f5.com` | No outbound route from the **management** subnet (section 4). |
-| The extension fails with a Declarative Onboarding error, `rollback failed`, `ECONNRESET` | Seen on BIG-IP 21.1 with the pinned DO version (section 11). Try a 17.5 image. |
+| The extension fails with a Declarative Onboarding error, `rollback failed`, `ECONNRESET` | Seen on BIG-IP 21.1 with the pinned DO 1.44.0 (section 11). Use DO 1.49.0 on 21.1, or a 17.5 image. |
 | `MissingSubscriptionRegistration` or similar | A required resource provider is not registered (section 3). |
 | A licence key will not activate on a new unit | The key is still bound to a deleted unit. Revoke the licence before deleting units (section 5). |
 
 ## 13. Deploying with no internet access at all (offline variant)
 
-**Use this only if you cannot allow the hosts in section 4.** It is a separate variant and **it is not the template at the top of this branch**: it lives on the branch `test-private-files` (a test branch, not a release), and the scripts it needs are in `examples/failover/offline/` there. The author verified it once, on BIG-IP 17.5.1.11, with the units having no route to the internet on either subnet. It needs more manual steps than the standard deployment and has limits, listed below.
+**Use this only if you cannot allow the hosts in section 4.** It uses the **same template** as the rest of this guide, with extra parameters, an install-only configuration file and two scripts (in `examples/failover/offline/`). The author verified it once, on BIG-IP 17.5.1.11, with the units having no route to the internet on either subnet. It needs more manual steps than the standard deployment and has limits, listed below.
 
 ### 13.1 What changes
 
@@ -353,10 +353,11 @@ Place these where the BIG-IP's management subnet can fetch them over **HTTP(S)**
 |---|---|---|
 | runtime-init installer `f5-bigip-runtime-init-2.0.3-1.gz.run` | https://cdn.f5.com/product/cloudsolutions/f5-bigip-runtime-init/v2.0.3/dist/f5-bigip-runtime-init-2.0.3-1.gz.run | `e38fabfee268d6b965a7c801ead7a5708e5766e349cfa6a19dd3add52018549a` |
 | Declarative Onboarding `f5-declarative-onboarding-1.44.0-5.noarch.rpm` | https://github.com/F5Networks/f5-declarative-onboarding/releases/download/v1.44.0/f5-declarative-onboarding-1.44.0-5.noarch.rpm | `3b05d9bcafbcf0b5b625ff81d6bab5ad26ed90c0dd202ded51756af3598a97ec` |
+| Declarative Onboarding `f5-declarative-onboarding-1.49.0-14.noarch.rpm` | F5's downloads site (software.downloads.f5.com, DO 1.49, requires an F5 login). **Use this one for BIG-IP 21.1.** It is not on GitHub or cdn.f5.com. | `7297eb9a79db6e8def279c9f6df40f148fe6f0d600bdd59e706dcad55d28f0aa` (the hash of the file as the author downloaded it) |
 | AS3 `f5-appsvcs-3.51.0-5.noarch.rpm` | https://github.com/F5Networks/f5-appsvcs-extension/releases/download/v3.51.0/f5-appsvcs-3.51.0-5.noarch.rpm | `e151a9ccd0fd60c359f31839dc3a70bfcf2b46b9fedb8e1c37e67255ee482c0f` |
 | Cloud Failover `f5-cloud-failover-2.1.2-2.noarch.rpm` | https://github.com/F5Networks/f5-cloud-failover-extension/releases/download/v2.1.2/f5-cloud-failover-2.1.2-2.noarch.rpm | `476d38a4d32d6474ae5435b5d448b318e638db4655edf049944f854504310839` |
 | signing key `gpg.key` | https://f5-cft.s3.amazonaws.com/f5-bigip-runtime-init/gpg.key | `5e329086089056079b32f6828b2e2c6fde5dcae8bef62b1f06308af1ede7072b` |
-| install-only configuration `runtime-init-installonly.yaml` | `examples/failover/bigip-configurations/runtime-init-conf-2nic-installonly.yaml` on the `test-private-files` branch, with the three `extensionUrl` lines edited to your internal addresses | n/a |
+| install-only configuration `runtime-init-installonly.yaml` | `examples/failover/bigip-configurations/runtime-init-conf-2nic-installonly.yaml` in this repository, with the three `extensionUrl` lines edited to your internal addresses (replace `<INTERNAL-HOST>`) | n/a |
 
 The three RPM hashes are the values pinned in the template's configuration files, and the author's downloads matched them. The GitHub download links were assembled from GitHub's standard release layout; check each one before you rely on it.
 
@@ -366,7 +367,7 @@ Set these in addition to the usual ones (section 6), using your internal address
 
 | Parameter | Value |
 |---|---|
-| `templateBaseUrl` and `artifactLocation` | Where the template's linked modules load from. Azure itself fetches these when you deploy (this is separate from the BIG-IPs), so they must be reachable from Azure, for example the `test-private-files` branch on GitHub or a copy you host. The author used the GitHub branch. |
+| `templateBaseUrl` and `artifactLocation` | Where the template's linked modules load from. Azure itself fetches these when you deploy (this is separate from the BIG-IPs), so they must be reachable from Azure: the defaults (this branch on GitHub) work, or point them at a copy you host. The author's test used the GitHub branch. |
 | `bigIpRuntimeInitPackageUrl` | the internal address of `f5-bigip-runtime-init-2.0.3-1.gz.run` |
 | `bigIpRuntimeInitConfig01`, `bigIpRuntimeInitConfig02` | the internal address of the install-only configuration (the same file for both units) |
 | `bigIpRuntimeInitKeyUrl` | `--key https://<internal host>/gpg.key --skip-toolchain-metadata-sync` |
@@ -383,7 +384,7 @@ After the deployment succeeds, the two units are installed and **unlicensed**. R
 python3 stage2-license.py --host <management IP> --regkey <registration key> --ssh-key <private key file> --password-file <file holding the admin password> --manual
 ```
 
-The script logs in with the SSH key, **sets the admin password** (a unit that has not run Declarative Onboarding has no usable admin password), reads the unit's dossier and prints it. On any computer **with internet access**, open https://activate.f5.com/license/dossier.jsp, paste the dossier, and copy the licence text it returns. Paste that text into the script, followed by a line containing only `END`. The script installs it and waits until the unit reports licensed. The BIG-IP itself never contacts F5. (`--auto` is meant to do the web step itself when the machine running the script has internet access. The author exercised that exchange by calling the same function from a script, but ran the full procedure only with `--manual`.)
+The script logs in with the SSH key, **sets the admin password** (a unit that has not run Declarative Onboarding has no usable admin password), reads the unit's dossier and prints it. On any computer **with internet access**, open https://activate.f5.com/license/dossier.jsp, paste the dossier, and copy the licence text it returns. Paste that text into the script, followed by a line containing only `END`. The script installs it and waits until the unit reports licensed. The BIG-IP itself never contacts F5. F5's activation page asks you to agree to the **F5 Platform Terms of Use** before it returns the licence; you read and accept them in the browser as you paste the dossier. (`--auto` does the web step itself when the machine running the script has internet access, but only if you also pass `--accept-terms`, which means **you** are agreeing to those terms. Without it the script stops and tells you to accept them yourself. The author's 17.5 test used `--manual`; the 21.1 test used `--auto`'s exchange with the terms accepted on the account holder's instruction.)
 
 **Step 2: apply the declarations** with `stage2-apply.py`, after **both** units are licensed:
 
@@ -399,8 +400,9 @@ Then check the pair as in section 8, **using SSH to the unit** if REST login fro
 
 - **Cloud Failover cannot move addresses.** CFE needs to reach Azure's management endpoint (`management.azure.com`). With no route out it stores its declaration and retries a refused connection. The pair forms and synchronises, but **a failover will not move any Azure address**. If you later open a route from the internal subnet to those two hosts, this may start working; the author did not test that.
 - **The units log errors** for the IP reputation service (`api.bcti.brightcloud.com`). They are harmless.
-- **It was verified once,** on 17.5.1.11 with DO 1.44.0, AS3 3.51.0 and CFE 2.1.2. It has not been tried on 21.1 or with other package versions.
-- **It is not a released template.** The variant and its scripts are on a test branch.
+- **It was verified twice:** on 17.5.1.11 with DO 1.44.0, and on 21.1.0.4 with DO 1.49.0 (both with AS3 3.51.0 and CFE 2.1.2). Other package versions have not been tried.
+- **It is not a released template.** It has been run once, by its author, in a lab.
+- **The standard deployment (sections 2 to 12) was last run before the offline parameter and scripts were added to this branch.** The new parameter defaults to empty and should not change the standard behaviour, but that has not been re-tested on this branch.
 
 ## 14. Deploying with a pre-created managed identity (no permission to create roles)
 

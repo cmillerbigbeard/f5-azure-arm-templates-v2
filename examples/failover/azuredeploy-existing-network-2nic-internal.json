@@ -138,25 +138,32 @@
       "type": "string"
     },
     "bigIpRuntimeInitConfig01": {
+      "type": "string",
       "defaultValue": "",
       "metadata": {
         "description": "Optional. Supply a URL to a bigip-runtime-init configuration file in YAML or JSON format, or an escaped JSON string. Leave blank to use the 2-NIC BYOL configuration for instance 01 from this branch."
-      },
-      "type": "string"
+      }
     },
     "bigIpRuntimeInitConfig02": {
+      "type": "string",
       "defaultValue": "",
       "metadata": {
         "description": "Optional. Supply a URL to a bigip-runtime-init configuration file in YAML or JSON format, or an escaped JSON string. Leave blank to use the 2-NIC BYOL configuration for instance 02 from this branch."
-      },
-      "type": "string"
+      }
     },
     "bigIpRuntimeInitPackageUrl": {
+      "type": "string",
       "defaultValue": "https://cdn.f5.com/product/cloudsolutions/f5-bigip-runtime-init/v2.0.3/dist/f5-bigip-runtime-init-2.0.3-1.gz.run",
       "metadata": {
-        "description": "URL for BIG-IP Runtime Init package"
-      },
-      "type": "string"
+        "description": "URL for the BIG-IP Runtime Init package. The BIG-IP downloads it at first boot from its management subnet, so that subnet needs outbound access to this address (see section 4 of the guide). To host it inside your network instead, see section 13."
+      }
+    },
+    "bigIpRuntimeInitKeyUrl": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional. Leave empty for the default (the installer downloads its signing key from f5-cft.s3.amazonaws.com). For an offline deployment, installer options such as: --key https://<your server>/gpg.key --skip-toolchain-metadata-sync (section 13 of the guide)."
+      }
     },
     "cfeStorageAccountName": {
       "defaultValue": "",
@@ -448,6 +455,9 @@
           "bigIpRuntimeInitPackageUrl": {
             "value": "[parameters('bigIpRuntimeInitPackageUrl')]"
           },
+          "bigIpRuntimeInitKeyUrl": {
+            "value": "[parameters('bigIpRuntimeInitKeyUrl')]"
+          },
           "bigIpRuntimeInitConfig": {
             "value": "[variables('runtimeInitConfig01')]"
           },
@@ -568,6 +578,9 @@
           "bigIpRuntimeInitPackageUrl": {
             "value": "[parameters('bigIpRuntimeInitPackageUrl')]"
           },
+          "bigIpRuntimeInitKeyUrl": {
+            "value": "[parameters('bigIpRuntimeInitKeyUrl')]"
+          },
           "bigIpRuntimeInitConfig": {
             "value": "[variables('runtimeInitConfig02')]"
           },
@@ -627,6 +640,6 @@
     }
   },
   "metadata": {
-    "description": "BIG-IP HA pair, 2 NICs (management + internal), existing network, NO public IPs, NO VIP or example app."
+    "description": "BIG-IP HA pair, 2 NICs (management + internal), existing network, NO public IPs. ONLINE: the BIG-IPs download their packages from the internet (outbound access from the management subnet needed); for no internet see branch azure-2nic-internal-offline."
   }
 }
