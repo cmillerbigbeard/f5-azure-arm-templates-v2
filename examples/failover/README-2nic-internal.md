@@ -94,7 +94,7 @@ This list comes from logs and spot checks on one deployment, not from a packet c
 
 This template uses **BYOL** licensing. `bigIpImage` is a BYOL image URN, and you supply one registration key per unit in `bigIpLicenseKey01` and `bigIpLicenseKey02`. Both keys are required.
 
-**Default image.** The template's default is `f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:21.1.004000`, chosen to match the image one customer uses. **BIG-IP 21.1 needs Declarative Onboarding 1.49.0.** In the author's tests, 21.1.0.4 onboarded and formed a pair with DO 1.49.0 (offline route, section 13), but a deployment with the pinned DO 1.44.0 failed during onboarding (section 11). BIG-IP 17.5.1.11 works with DO 1.44.0: set `bigIpImage` to `f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:17.5.111000` if you want that combination.
+**Default image and size.** The template's default is `f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:21.1.004000` on `Standard_D8s_v5` (32 GB), chosen to match what one customer uses. **On that combination, BIG-IP 21.1 with the template's default Declarative Onboarding (DO) 1.44.0 failed to onboard in every one of the author's 5 runs.** It worked in all 3 runs with DO 1.49.0 on the same size, and in all 3 runs with DO 1.44.0 on a 64 GB size (`Standard_D16s_v5`). So for BIG-IP 21.1, do one of these: use DO 1.49.0 (section 5.1), or use a 64 GB VM size (`bigIpInstanceType` = `Standard_D16s_v5`). BIG-IP 17.5.1.11 works with DO 1.44.0 on `Standard_D8s_v5`: set `bigIpImage` to `f5-networks:f5-big-ip-byol:f5-big-all-2slot-byol:17.5.111000` if you want that combination. Section 11 has the full results.
 
 Accept the image's marketplace terms once per subscription if you have not already:
 
@@ -315,13 +315,13 @@ These came from real failures and apply to anyone who deploys this template more
 
 **Verified failures:**
 
-- **BIG-IP 21.1.0.4 (image `21.1.004000`) did not onboard with Declarative Onboarding 1.44.0** in one deployment: the onboarding task failed with a server error and `rollback failed` (`read ECONNRESET`) while reading the device's configuration. That deployment was not repeated with 1.44.0, so the cause is likely, not proven, to be that DO version. The same image **did** onboard with DO 1.49.0 (section 13), so use 1.49.0 on 21.1.
+- **BIG-IP 21.1.0.4 (image `21.1.004000`) with DO 1.44.0, AS3 3.51.0 and CFE 2.1.2 failed on `Standard_D8s_v5` (32 GB) in 5 of 5 runs, and passed on `Standard_D16s_v5` (64 GB) in 3 of 3 runs.** The failures were REST calls to the BIG-IP's own management services failing or timing out: a Declarative Onboarding task ending in `ECONNRESET` then `rollback failed` (3 runs), a Cloud Failover declaration timing out with `AsyncContext timeout` (2 runs), and once each an AS3 availability check returning 404 and a Cloud Failover declaration returning 400. On a failed 32 GB unit the host had about 44 to 48 MB of memory available, against about 815 to 833 MB on a passing 64 GB unit. Both had the same provisioning (LTM nominal), the same `provision.extramb` (1000) and the same restjavad heap, and the kernel killed no process on either. The BIG-IP reserved about 86% of RAM for TMM on both sizes, which leaves the management software about 5.3 GB on 32 GB and about 9.4 GB on 64 GB. Low memory is consistent with the failures but is not proven to be their cause: DO 1.49.0 passed on 32 GB with similarly low available memory. The same image worked with DO 1.49.0 on 32 GB (3 of 3 runs, one of them the offline route), so use 1.49.0 on 21.1 (section 5.1) or a 64 GB size.
 - No outbound route on the management subnet stops the first boot (section 4).
 
 **Not verified:**
 
 - Clicking the Deploy to Azure button and completing the portal form.
-- BIG-IP versions other than 17.5.1.11 and 21.1.0.4, and BIG-IP 21.1 with DO 1.44.0 a second time.
+- BIG-IP versions other than 17.5.1.11 and 21.1.0.4; other VM sizes between 32 GB and 64 GB, other 32 GB sizes, other regions; DO 1.47.0 (the newest public version) on 21.1; and whether more host memory on a 32 GB VM (`provision.extramb`) avoids the failure.
 - Other VM sizes, other regions, availability zones.
 - A firewall or proxy route instead of a NAT gateway.
 - Client traffic through a virtual server during a failover, and the length of any outage.
@@ -341,7 +341,7 @@ These came from real failures and apply to anyone who deploys this template more
 | `SecurityRuleParametersMissing` | The same: an older copy of this template. |
 | Deployment succeeds but a unit lists only itself | The pair did not form (section 8). Check `bigIpInternalSelfIp01` and connectivity between the units. |
 | `onboarder` extension fails with `exit status=127` and `Connection timed out` to `cdn.f5.com` | No outbound route from the **management** subnet (section 4). |
-| The extension fails with a Declarative Onboarding error, `rollback failed`, `ECONNRESET` | Seen on BIG-IP 21.1 with the pinned DO 1.44.0 (section 11). Use DO 1.49.0 on 21.1, or a 17.5 image. |
+| The extension fails with a Declarative Onboarding error `rollback failed` / `ECONNRESET`, or a Cloud Failover `AsyncContext timeout` | Seen on BIG-IP 21.1 with DO 1.44.0 on a 32 GB VM size (section 11). Use DO 1.49.0 (section 5.1), or a 64 GB size such as `Standard_D16s_v5`, or a 17.5 image. |
 | `MissingSubscriptionRegistration` or similar | A required resource provider is not registered (section 3). |
 | A licence key will not activate on a new unit | The key is still bound to a deleted unit. Revoke the licence before deleting units (section 5). |
 

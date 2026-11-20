@@ -217,7 +217,9 @@ pre_onboard_enabled:
   - name: provision_rest
     type: inline
     commands:
-      - /usr/bin/setdb provision.extramb 1000 || exit 0
+      # Host (control-plane) memory: 3000 MB. At the earlier 1000 MB, BIG-IP 21.1 on a 32 GB VM failed to onboard in 5 of 5 test runs (restjavad starved of memory);
+      # 3000 MB passed in 2 of 2 runs (2000 MB failed once). It moves about 2 GB from TMM hugepages to the host. Tested on 32 GB with 21.1 only.
+      - /usr/bin/setdb provision.extramb 3000 || exit 0
       - /usr/bin/setdb provision.restjavad.extramb 1384 || /usr/bin/setdb restjavad.useextramb
         true || exit 0
 runtime_parameters:
