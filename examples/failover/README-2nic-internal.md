@@ -17,6 +17,7 @@ It is derived from the `failover` solution template (`azuredeploy-existing-netwo
 5. [Template parameters (complete reference)](#6-template-parameters-complete-reference)
 6. [Deploying](#7-deploying)
 7. [Checking that the pair formed](#8-checking-that-the-pair-formed)
+   - [Logging in to the BIG-IPs](#81-logging-in-to-the-big-ips)
 8. [Redeploying and cleaning up](#9-redeploying-and-cleaning-up)
 9. [What differs from F5's template](#10-what-differs-from-f5s-template)
 10. [What was and was not verified](#11-what-was-and-was-not-verified)
@@ -279,6 +280,22 @@ A successful deployment does not prove the units clustered. From a host that can
 If a unit lists only itself, the pair did not form. Check that the units can reach each other on the internal subnet and that `bigIpInternalSelfIp01` is unit 1's real address.
 
 **Verifying address failover.** The template creates no virtual address, so a forced failover (`tmsh run sys failover standby` on the active unit) only swaps the active unit. To see CFE move an address, add a secondary private IP to the active unit's internal NIC in Azure and create a matching virtual address in `traffic-group-1` on the BIG-IP, then force a failover and look at which NIC holds the IP.
+
+### 8.1 Logging in to the BIG-IPs
+
+| Way in | Account | Credential | Works when |
+|---|---|---|---|
+| SSH to the management address | `azureuser` | the **private** key that matches the public key you gave in `sshKey` | as soon as the virtual machine is running, even if onboarding failed |
+| Web interface and REST API (`https://<management IP>`) | `admin` | the password you gave in `bigIpPasswordSecretValue`, or the value of the Key Vault secret named in `bigIpPasswordSecretId` | **only after** Declarative Onboarding has run successfully |
+
+- **There is no SSH password.** The virtual machines are created with password login disabled, so the only way in over SSH is the private key. There is no default password to try.
+- **The user name is always `azureuser`** (not `admin` and not `root`).
+- **After you log in the shell is `tmsh`.** Type `bash` for a normal shell (this is how the author ran commands on the units).
+- **The `admin` password is set by Declarative Onboarding**, which is one of the last onboarding steps. If the deployment failed before it, as in the first-boot failures in section 12, `admin` has no usable password, and only the SSH key works. In the author's tests, REST login as `admin` was rejected on a unit where onboarding had not run.
+- **The `sshKey` value** must be the public key on one line, starting with `ssh-rsa` (or another key type such as `ssh-ed25519`), with no line breaks. A key pasted from a `.pem` file, or with part cut off, creates the virtual machine but lets no key in.
+- **Reaching the management address** needs a route to the management subnet (a jump host, VPN or ExpressRoute); the BIG-IPs have no public address. Your `restrictedSrcAddressMgmt` value must include the address you connect from, or the network security group drops the connection.
+- **If SSH refuses you,** run `ssh -v -i <key file> azureuser@<management IP>` and read the last lines: `Permission denied (publickey)` means the wrong key or user, a timeout means the network path or the security group, and `Connection refused` means the unit is not yet listening.
+- **Logs worth reading after a failed first boot:** `/var/log/cloud/startup-script.log` (the first-boot script, including the configuration download) and `/var/log/cloud/bigIpRuntimeInit.log` (the onboarding steps).
 
 ## 9. Redeploying and cleaning up
 
