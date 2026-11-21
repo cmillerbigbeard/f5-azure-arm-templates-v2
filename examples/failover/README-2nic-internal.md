@@ -45,7 +45,7 @@ It is derived from the `failover` solution template (`azuredeploy-existing-netwo
 | An existing virtual network | With **two different subnets**: one for management and one for the internal (data) network. |
 | Outbound access from the **management** subnet (and the internal subnet) | Because the units have no public IP, you must provide the route out. See section 4. **This is the requirement most likely to stop a deployment.** If you cannot, see section 13. |
 | BIG-IP BYOL registration keys | One per unit, two in total. See section 5. |
-| An SSH public key | For the `azureuser` account on both VMs. |
+| An SSH public key | Installed for SSH login to both VMs (log in as `admin`; see section 8.1). |
 | Permission to create resources, roles and role assignments | The template creates a custom role, a role assignment, a managed identity, a Key Vault, three storage accounts and the VMs. If you cannot create roles, see section 14. |
 | A way to reach the units' private management addresses | A jump host, VPN or ExpressRoute. The template creates none. |
 | A **new resource group** for each deployment | See section 9: two deployments cannot share a resource group. |
@@ -124,7 +124,7 @@ The template file is `examples/failover/azuredeploy-existing-network-2nic-intern
 | Parameter | Type | What to enter |
 |---|---|---|
 | `uniqueString` | string | A short prefix used to name the resources. Some names must be globally unique, so choose something distinctive. **Use a new value for every deployment** (section 9). Lower case letters and digits work best. |
-| `sshKey` | string | Your SSH **public** key (for example the contents of `id_rsa.pub`), for the `azureuser` account. |
+| `sshKey` | string | Your SSH **public** key (for example the contents of `id_rsa.pub`). Log in to the BIG-IPs as `admin` with the matching private key (section 8.1). |
 | `restrictedSrcAddressMgmt` | string | The network allowed to reach the units' management ports (SSH 22 and HTTPS 443), in CIDR notation, for example `10.20.0.0/16`. Enter a private range such as your jump host's network. `*` allows any source; do not use that. |
 | `bigIpMgmtSubnetId` | string | Full Azure resource ID of the management subnet. |
 | `bigIpInternalSubnetId` | string | Full Azure resource ID of the internal (data) subnet. |
@@ -274,16 +274,16 @@ If a unit lists only itself, the pair did not form. Check that the units can rea
 
 | Way in | Account | Credential | Works when |
 |---|---|---|---|
-| SSH to the management address | `azureuser` | the **private** key that matches the public key you gave in `sshKey` | as soon as the virtual machine is running, even if onboarding failed |
+| SSH to the management address | `admin` | the **private** key that matches the public key you gave in `sshKey` | in the author's tests, as soon as the virtual machine was running, including before onboarding had run |
 | Web interface and REST API (`https://<management IP>`) | `admin` | the password you gave in `bigIpPasswordSecretValue`, or the value of the Key Vault secret named in `bigIpPasswordSecretId` | **only after** Declarative Onboarding has run successfully |
 
-- **There is no SSH password.** The virtual machines are created with password login disabled, so the only way in over SSH is the private key. There is no default password to try.
-- **The user name is always `azureuser`** (not `admin` and not `root`).
+- **There is no SSH password to try.** The virtual machines are created with password login disabled, so the way in over SSH is the private key. If you are asked for a password, you are probably logging in as `azureuser`: use `admin`.
+- **Log in as `admin`, not `azureuser`.** The template creates the virtual machine with the user name `azureuser`, and the same key works for it, but a BIG-IP then answers `You are required to change your password immediately` (or `Password change required but no TTY available` for a non-interactive client) and asks for a current password that does not exist. The author hit that prompt on every unit with `azureuser`, and a customer hit it too. Logging in as `admin` with the same key went straight to a shell on every unit the author tried, including units where Declarative Onboarding had not yet run. The reason `admin` accepts the key was not investigated. `root` is not available over SSH.
 - **After you log in the shell is `tmsh`.** Type `bash` for a normal shell (this is how the author ran commands on the units).
-- **The `admin` password is set by Declarative Onboarding**, which is one of the last onboarding steps. If the deployment failed before it, as in the first-boot failures in section 12, `admin` has no usable password, and only the SSH key works. In the author's tests, REST login as `admin` was rejected on a unit where onboarding had not run.
+- **The `admin` password is set by Declarative Onboarding**, which is one of the last onboarding steps. If the deployment failed before it, as in the first-boot failures in section 12, the password does not work (web and REST login are rejected), and only the SSH key works. In the author's tests, REST login as `admin` was rejected on a unit where onboarding had not run.
 - **The `sshKey` value** must be the public key on one line, starting with `ssh-rsa` (or another key type such as `ssh-ed25519`), with no line breaks. A key pasted from a `.pem` file, or with part cut off, creates the virtual machine but lets no key in.
 - **Reaching the management address** needs a route to the management subnet (a jump host, VPN or ExpressRoute); the BIG-IPs have no public address. Your `restrictedSrcAddressMgmt` value must include the address you connect from, or the network security group drops the connection.
-- **If SSH refuses you,** run `ssh -v -i <key file> azureuser@<management IP>` and read the last lines: `Permission denied (publickey)` means the wrong key or user, a timeout means the network path or the security group, and `Connection refused` means the unit is not yet listening.
+- **If SSH refuses you,** run `ssh -v -i <key file> admin@<management IP>` and read the last lines: `Permission denied (publickey)` means the wrong key or user, a timeout means the network path or the security group, and `Connection refused` means the unit is not yet listening.
 - **Logs worth reading after a failed first boot:** `/var/log/cloud/startup-script.log` (the first-boot script, including the configuration download) and `/var/log/cloud/bigIpRuntimeInit.log` (the onboarding steps).
 
 ## 9. Redeploying and cleaning up
