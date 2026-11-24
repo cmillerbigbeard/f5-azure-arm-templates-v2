@@ -1,6 +1,6 @@
-# BIG-IP HA pair on Azure: 2 NICs (management + internal), no public IP addresses
+# BIG-IP HA pair on Azure: 2 NICs (management + internal), with optional public IP addresses
 
-This template deploys a two-unit BIG-IP high-availability (HA) pair with Cloud Failover Extension (CFE) into an **existing** Azure virtual network. Each unit has two network interfaces, **management** and **internal**, and the deployment creates **no public IP addresses of any kind**: none on the BIG-IPs, and no bastion host, load balancer, example application or virtual server.
+This template deploys a two-unit BIG-IP high-availability (HA) pair with Cloud Failover Extension (CFE) into an **existing** Azure virtual network. Each unit has two network interfaces, **management** and **internal**, and the deployment creates **one public IP address on each NIC (four in all) by default**, which you can switch off with two parameters. There is no bastion host, load balancer, example application or virtual server. The public IPs are meant to be temporary: they give the units a way out to the internet while you provision and test failover, and you remove them afterwards once your own firewall or route carries that traffic (section 4.1).
 
 It is derived from the `failover` solution template (`azuredeploy-existing-network.json`) in [F5's repository](https://github.com/F5Networks/f5-azure-arm-templates-v2), which is not included here. The section "What differs from F5's template" lists every change.
 
@@ -13,6 +13,7 @@ It is derived from the `failover` solution template (`azuredeploy-existing-netwo
 1. [Quick start](#2-quick-start)
 2. [Prerequisites](#3-prerequisites)
 3. [Network and outbound access](#4-network-and-outbound-access)
+   - [Public IPs now, your own route later](#41-public-ips-now-your-own-route-later-this-branchs-default)
 4. [Licensing](#5-licensing)
 5. [Template parameters (complete reference)](#6-template-parameters-complete-reference)
 6. [Deploying](#7-deploying)
@@ -34,7 +35,7 @@ It is derived from the `failover` solution template (`azuredeploy-existing-netwo
 
 **Deploy to Azure button** (opens the portal's custom deployment page with this template loaded):
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcmillerbigbeard%2Ff5-azure-arm-templates-v2%2Fno-public-ip-2nic-internal%2Fexamples%2Ffailover%2Fazuredeploy-existing-network-2nic-internal.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcmillerbigbeard%2Ff5-azure-arm-templates-v2%2Fazure-2nic-public-ip%2Fexamples%2Ffailover%2Fazuredeploy-existing-network-2nic-internal.json)
 
 *Not verified:* the author built this link and checked that the template and every file it loads resolve, but did **not** click it or complete the portal form. All deployments described here used the Azure CLI with the same template URL.
 
@@ -43,7 +44,7 @@ It is derived from the `failover` solution template (`azuredeploy-existing-netwo
 | You need | Detail |
 |---|---|
 | An existing virtual network | With **two different subnets**: one for management and one for the internal (data) network. |
-| Outbound access from the **management** subnet (and the internal subnet) | Because the units have no public IP, you must provide the route out. See section 4. **This is the requirement most likely to stop a deployment.** If you cannot, see section 13. |
+| Outbound access from the **management** subnet | With the default settings the template gives each unit public IPs, which provide that route. If you switch them off, you must provide the route out (section 4). **That is the requirement most likely to stop a deployment.** If you cannot, see section 13. |
 | BIG-IP BYOL registration keys | One per unit, two in total. See section 5. |
 | An SSH public key | Installed for SSH login to both VMs (log in as `admin`; see section 8.1). |
 | Permission to create resources, roles and role assignments | The template creates a custom role, a role assignment, a managed identity, a Key Vault, three storage accounts and the VMs. If you cannot create roles, see section 14. |
@@ -90,6 +91,31 @@ This list comes from logs and spot checks on one deployment, not from a packet c
 **Moving the default route to the internal NIC from first boot is not possible** with this template. It would require changing the first-boot script in `modules/bigip-standalone/bigip.json`, which this solution deliberately does not modify.
 
 **If you cannot open any route to the internet,** see section 13.
+
+### 4.1 Public IPs now, your own route later (this branch's default)
+
+This branch's template creates a public IP on each unit's management NIC and on each unit's internal (data) NIC, so a deployment works with no firewall or NAT in place. The two parameters are `provisionPublicIpMgmt` and `provisionPublicIpDataPlane` (both default `true`). The plan this was built for is: deploy, confirm the pair formed, test failover, then remove the public IPs once your own firewall or route carries the traffic.
+
+**Which public IP does which job.** The BIG-IP has two default routes: the data-plane one goes out the **internal** NIC, and the management one (metric 4096) loses to it. In the author's test, a unit's calls to the internet and to Azure left through the internal NIC, so **the public IP on the internal NIC is the one CFE depends on.** The management NIC's route carries only the Azure metadata address (`169.254.169.254`) and the Azure host address (`168.63.129.16`). The management public IP is what you use to reach a unit from the internet and it is what carries the first-boot downloads (section 4 above).
+
+**What the author tested** (BIG-IP 21.1.0.4, `Standard_D8s_v5`, no NAT gateway at the start, `defaultOutboundAccess` switched off on both subnets; the pair was deployed once from this branch with the defaults):
+
+| Step | Result |
+|---|---|
+| Deploy with public IPs on both NICs of both units | *Verified.* Both units licensed, `In Sync`, one `ACTIVE`, one `STANDBY`, `provision.extramb` 3000. |
+| Forced failover, with a secondary IP and a matching virtual address in `traffic-group-1` | *Verified.* CFE moved the address to the other unit's internal NIC; Azure showed it about a minute after the failover was requested. |
+| **Delete the two management public IPs**, then force a failover | *Verified.* CFE moved the address. |
+| **Attach a NAT gateway to the internal subnet, delete the two internal-NIC public IPs**, then force a failover | *Verified.* No public IP was left on any BIG-IP NIC, and CFE still moved the address. |
+
+**What the author saw when the internal NIC has no way out.** In an earlier 3-NIC test (a different template), a deployment with public IPs on the management NICs only failed on both units at the CFE step: the Cloud Failover declaration timed out and the unit's log showed repeated `connect ECONNREFUSED` to `management.azure.com` addresses. With nothing on the internal path, `management.azure.com`, `login.microsoftonline.com` and `activate.f5.com` all timed out, while the same calls forced out of the management NIC succeeded. A management public IP alone does not make CFE work.
+
+**What this means for you.**
+- Do **not** delete the internal-NIC public IPs until the firewall or route for the internal subnet is in place and allows `management.azure.com` and `login.microsoftonline.com` on port 443. Without it, a failover cannot move the address.
+- The management public IPs can be deleted at any time after the deployment succeeded. The author deleted them with the pair running.
+- Test a forced failover **before** and **after** each public IP removal. A NAT gateway stood in for the firewall in the author's test. **A firewall or proxy route was not tested.**
+- There is no virtual address to move until you create one. For a failover test, add a secondary IP to the active unit's internal NIC in Azure and a matching virtual address in `traffic-group-1` on the BIG-IP (section 11).
+- Deleting a public IP from a running NIC means removing it from the NIC's IP configuration first (`az network nic ip-config update ... --remove publicIpAddress`), then deleting the public IP resource.
+- To deploy without any public IP, set both parameters to `false`.
 
 ## 5. Licensing
 
@@ -146,6 +172,13 @@ Get a subnet's resource ID:
 az network vnet subnet show -g <vnet-resource-group> --vnet-name <vnet> -n <subnet> --query id -o tsv
 ```
 
+### 6.1.1 Public IP switches
+
+| Parameter | Default | What it does |
+|---|---|---|
+| `provisionPublicIpMgmt` | `true` | Creates a public IP on each unit's management NIC. Set `false` for none. |
+| `provisionPublicIpDataPlane` | `true` | Creates a public IP on each unit's internal (data) NIC. This is the NIC whose default route CFE uses. Set `false` only if your network already gives that subnet an outbound path. |
+
 ### 6.2 Addresses (defaults almost certainly need changing)
 
 | Parameter | Default | Notes |
@@ -189,13 +222,13 @@ Azure reserves the first four and the last address of every subnet, so do not us
 | Parameter | Default | Notes |
 |---|---|---|
 | `templateBaseUrl` | `https://raw.githubusercontent.com/cmillerbigbeard/f5-azure-arm-templates-v2/` | Where the linked modules are fetched from. |
-| `artifactLocation` | `no-public-ip-2nic-internal/examples/` | Path under the base URL. **Both defaults point at this branch of the fork**, so the template and the files it loads match. Do not change them to F5's download site: its copies still create general-purpose v1 storage and use the old interface names. |
+| `artifactLocation` | `azure-2nic-public-ip/examples/` | Path under the base URL. **Both defaults point at this branch of the fork**, so the template and the files it loads match. Do not change them to F5's download site: its copies still create general-purpose v1 storage and use the old interface names. |
 | `bigIpRuntimeInitPackageUrl` | F5 download site, runtime-init v2.0.3 | The BIG-IP runtime-init package. |
 | `bigIpRuntimeInitConfig01`, `02` | empty | Optional replacement BIG-IP onboarding configuration (a URL or an escaped JSON string). If empty, the template picks the BYOL 2-NIC configuration from this branch. |
 
 ### 6.7 Outputs
 
-`bigIpInstance01VmId`, `bigIpInstance02VmId`, `bigIpInstance01ManagementPrivateIp`, `bigIpInstance02ManagementPrivateIp`, `bigIpInstance01ManagementPrivateUrl`, `bigIpInstance02ManagementPrivateUrl`, `bigIpSecretId`. There are no public addresses to output.
+`bigIpInstance01VmId`, `bigIpInstance02VmId`, `bigIpInstance01ManagementPrivateIp`, `bigIpInstance02ManagementPrivateIp`, `bigIpInstance01ManagementPrivateUrl`, `bigIpInstance02ManagementPrivateUrl`, `bigIpSecretId`. The public addresses are not output; read them from the `<uniqueString>-mgmt-pip-01`/`02` and `<uniqueString>-app-pip-01`/`02` resources.
 
 ## 7. Deploying
 
@@ -248,13 +281,13 @@ Azure reserves the first four and the last address of every subnet, so do not us
 4. Validate (creates nothing):
 
     ```
-    az deployment group validate -g <new-resource-group> --template-uri "https://raw.githubusercontent.com/cmillerbigbeard/f5-azure-arm-templates-v2/no-public-ip-2nic-internal/examples/failover/azuredeploy-existing-network-2nic-internal.json" --parameters @params.json
+    az deployment group validate -g <new-resource-group> --template-uri "https://raw.githubusercontent.com/cmillerbigbeard/f5-azure-arm-templates-v2/azure-2nic-public-ip/examples/failover/azuredeploy-existing-network-2nic-internal.json" --parameters @params.json
     ```
 
 5. Deploy:
 
     ```
-    az deployment group create -g <new-resource-group> -n <deployment-name> --template-uri "https://raw.githubusercontent.com/cmillerbigbeard/f5-azure-arm-templates-v2/no-public-ip-2nic-internal/examples/failover/azuredeploy-existing-network-2nic-internal.json" --parameters @params.json
+    az deployment group create -g <new-resource-group> -n <deployment-name> --template-uri "https://raw.githubusercontent.com/cmillerbigbeard/f5-azure-arm-templates-v2/azure-2nic-public-ip/examples/failover/azuredeploy-existing-network-2nic-internal.json" --parameters @params.json
     ```
 
    Deployment takes about 15 to 20 minutes.
@@ -265,7 +298,7 @@ Azure reserves the first four and the last address of every subnet, so do not us
 
 ## 8. Checking that the pair formed
 
-A successful deployment does not prove the units clustered. From a host that can reach the management addresses (the units have no public IPs), query each unit's REST API at `https://<management-ip>/mgmt/...` as `admin`:
+A successful deployment does not prove the units clustered. From a host that can reach the management addresses (with the default settings the management NICs have public IPs, limited by `restrictedSrcAddressMgmt`), query each unit's REST API at `https://<management-ip>/mgmt/...` as `admin`:
 
 | Check | Expected |
 |---|---|
@@ -293,7 +326,7 @@ If a unit lists only itself, the pair did not form. Check that the units can rea
 - **After you log in the shell is `tmsh`.** Type `bash` for a normal shell (this is how the author ran commands on the units).
 - **The `admin` password is set by Declarative Onboarding**, which is one of the last onboarding steps. If the deployment failed before it, as in the first-boot failures in section 12, the password does not work (web and REST login are rejected), and only the SSH key works. In the author's tests, REST login as `admin` was rejected on a unit where onboarding had not run.
 - **The `sshKey` value** must be the public key on one line, starting with `ssh-rsa` (or another key type such as `ssh-ed25519`), with no line breaks. A key pasted from a `.pem` file, or with part cut off, creates the virtual machine but lets no key in.
-- **Reaching the management address** needs a route to the management subnet (a jump host, VPN or ExpressRoute); the BIG-IPs have no public address. Your `restrictedSrcAddressMgmt` value must include the address you connect from, or the network security group drops the connection.
+- **Reaching the management address** needs a route to the management subnet (a jump host, VPN or ExpressRoute) or, with `provisionPublicIpMgmt` left at `true`, the unit's public IP. Your `restrictedSrcAddressMgmt` value must include the address you connect from, or the network security group drops the connection.
 - **If SSH refuses you,** run `ssh -v -i <key file> admin@<management IP>` and read the last lines: `Permission denied (publickey)` means the wrong key or user, a timeout means the network path or the security group, and `Connection refused` means the unit is not yet listening.
 - **Logs worth reading after a failed first boot:** `/var/log/cloud/startup-script.log` (the first-boot script, including the configuration download) and `/var/log/cloud/bigIpRuntimeInit.log` (the onboarding steps).
 
@@ -309,7 +342,7 @@ These came from real failures and apply to anyone who deploys this template more
 ## 10. What differs from F5's template
 
 - **Two NICs only.** NIC 1 is management and NIC 2 is the data network, called **internal** everywhere: parameter names, the VLAN `internal`, the self IP `internal-self` and the runtime parameter `SELF_IP_INTERNAL`. There is no 3-NIC mode, and `numNics` is removed.
-- **No public IPs, no bastion, no load balancer, no example application, no virtual server, no NAT gateway.** The parameters `provisionPublicIpMgmt`, `provisionServicePublicIp`, `restrictedSrcAddressApp` and `bigIpExternalVip01` are removed.
+- **No bastion, no load balancer, no example application, no virtual server, no NAT gateway.** Public IPs are optional: `provisionPublicIpMgmt` (kept from F5's template) and `provisionPublicIpDataPlane` (new, for the internal NIC) both default to `true`. The parameters `provisionServicePublicIp`, `restrictedSrcAddressApp` and `bigIpExternalVip01` are removed.
 - **No virtual address is created.** Add your own virtual servers (for example with AS3) in the floating traffic group.
 - **The peer address is derived** from `bigIpInternalSelfIp01`. F5's template has a separate `bigIpPeerAddr` that can disagree with it and silently stop the pair forming.
 - **The internal NIC has a network security group with one rule** (the management source, TCP 443). Azure's default rules allow traffic inside the virtual network, which the pair uses to synchronise. Add your own rules for your applications.
@@ -322,7 +355,8 @@ These came from real failures and apply to anyone who deploys this template more
 **Verified** (Azure CLI, BYOL with evaluation keys, one region, no availability zones; most results on BIG-IP 17.5.1.11, and the 21.1.0.4 results are stated as such):
 
 - Validation and deployment succeed from the branch URL, on several separate deployments.
-- No public IP is attached to any BIG-IP NIC. The only public IP in the test resource groups was the NAT gateway's. No bastion, load balancer or application VM was created.
+- With the default settings, each unit has a public IP on its management NIC and one on its internal NIC (four in all, plus the test network's NAT gateway where there was one). No bastion, load balancer or application VM was created. With both switches `false` the template passes empty public IP values and a count of 0, as the baseline branch does, and it validates; that combination was **not deployed** on this branch.
+- **Public IPs, then removal (section 4.1):** the pair formed with public IPs only and no NAT gateway, CFE moved an address on forced failovers before any removal, after deleting the management public IPs, and after replacing the internal-NIC public IPs with a NAT gateway on the internal subnet.
 - On the standard deployments, both units reported 17.5.1.11, licensed, listing both devices, `In Sync`, one `ACTIVE` and one `STANDBY`, with the internal NIC named `internal`.
 - All storage accounts created were `StorageV2`.
 - **A pre-created managed identity works.** With `bigIpUserAssignManagedIdentity` and `bigIpPasswordSecretId` supplied (section 14), the deployment had no access-module step, so it did not create the custom role, role assignment or Key Vault (seen in the deployment's step list), and the pair formed. The test account was an owner, so this shows the template skips those steps; it does not prove that a restricted account is sufficient.
@@ -340,7 +374,7 @@ These came from real failures and apply to anyone who deploys this template more
 - Clicking the Deploy to Azure button and completing the portal form.
 - BIG-IP versions other than 17.5.1.11 and 21.1.0.4; other VM sizes between 32 GB and 64 GB, other 32 GB sizes, other regions; DO 1.47.0 (the newest public version) on 21.1; and the effect of the `provision.extramb` 3000 setting on traffic handling, since it moves about 2 GB from the traffic engine's reserved memory to the host.
 - Other VM sizes, other regions, availability zones.
-- A firewall or proxy route instead of a NAT gateway.
+- A firewall or proxy route instead of a NAT gateway or public IPs.
 - Client traffic through a virtual server during a failover, and the length of any outage.
 - CFE moving an address when the units cannot reach Azure (it cannot; section 13).
 - Upgrading or redeploying over an existing deployment.
