@@ -17,7 +17,7 @@
       "type": "bool"
     },
     "artifactLocation": {
-      "defaultValue": "no-public-ip-2nic-internal/examples/",
+      "defaultValue": "azure-2nic-public-ip/examples/",
       "metadata": {
         "description": "The directory, relative to the templateBaseUrl, where the modules folder is located."
       },
@@ -96,6 +96,20 @@
         "description": "REQUIRED - Restricts management access (ports 22 and 443) to a specific network or address, in CIDR notation, for example the private range of your jump host or management network."
       },
       "type": "string"
+    },
+    "provisionPublicIpMgmt": {
+      "defaultValue": true,
+      "metadata": {
+        "description": "Create a public IP address for each BIG-IP management NIC. The management NIC also carries the BIG-IP metadata and Azure host traffic. Default true so provisioning works from the internet; delete the public IPs after you have tested failover."
+      },
+      "type": "bool"
+    },
+    "provisionPublicIpDataPlane": {
+      "defaultValue": true,
+      "metadata": {
+        "description": "Create a public IP address for each BIG-IP data-plane NIC (the second NIC, which carries the default route). Cloud Failover Extension reaches management.azure.com and login.microsoftonline.com through this NIC, so it needs a public IP, or a NAT gateway / firewall route on its subnet, to move addresses at failover. Default true; remove the public IPs only after that outbound path exists."
+      },
+      "type": "bool"
     },
     "bigIpMgmtSubnetId": {
       "metadata": {
@@ -345,10 +359,10 @@
             "value": []
           },
           "numberPublicExternalIpAddresses": {
-            "value": 0
+            "value": "[if(parameters('provisionPublicIpDataPlane'), 2, 0)]"
           },
           "numberPublicMgmtIpAddresses": {
-            "value": 0
+            "value": "[if(parameters('provisionPublicIpMgmt'), 2, 0)]"
           },
           "tagValues": {
             "value": "[parameters('tagValues')]"
@@ -414,7 +428,7 @@
             "value": "[reference('dagTemplate').outputs.nsg0Id.value]"
           },
           "mgmtPublicIpId": {
-            "value": ""
+            "value": "[if(parameters('provisionPublicIpMgmt'), reference('dagTemplate').outputs.mgmtIpIds.value[0], '')]"
           },
           "mgmtSelfIp": {
             "value": "[parameters('bigIpMgmtAddress01')]"
@@ -426,7 +440,7 @@
             "value": "[reference('dagTemplate').outputs.nsg1Id.value]"
           },
           "nic1PrimaryPublicId": {
-            "value": ""
+            "value": "[if(parameters('provisionPublicIpDataPlane'), reference('dagTemplate').outputs.externalIpIds.value[0], '')]"
           },
           "nic1SelfIp": {
             "value": "[parameters('bigIpInternalSelfIp01')]"
@@ -537,7 +551,7 @@
             "value": "[reference('dagTemplate').outputs.nsg0Id.value]"
           },
           "mgmtPublicIpId": {
-            "value": ""
+            "value": "[if(parameters('provisionPublicIpMgmt'), reference('dagTemplate').outputs.mgmtIpIds.value[1], '')]"
           },
           "mgmtSelfIp": {
             "value": "[parameters('bigIpMgmtAddress02')]"
@@ -549,7 +563,7 @@
             "value": "[reference('dagTemplate').outputs.nsg1Id.value]"
           },
           "nic1PrimaryPublicId": {
-            "value": ""
+            "value": "[if(parameters('provisionPublicIpDataPlane'), reference('dagTemplate').outputs.externalIpIds.value[1], '')]"
           },
           "nic1SelfIp": {
             "value": "[parameters('bigIpInternalSelfIp02')]"
